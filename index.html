@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A股人气榜查询</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23e74c3c'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>股</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📈 A股人气榜查询</h1>
+            <p class="subtitle">同花顺个股人气榜 Top 30 · 收盘后数据</p>
+        </header>
+
+        <div id="degrade-notice" class="degrade-notice hidden">
+            ⚠️ 已降级至东方财富热股榜
+        </div>
+
+        <div id="trading-day-info" class="trading-day-info hidden">
+            <span class="label">数据所属交易日：</span>
+            <span id="trading-day" class="date"></span>
+            <span id="trading-day-message" class="message"></span>
+        </div>
+
+        <div class="query-section">
+            <button id="query-btn" class="query-btn" onclick="fetchData()">
+                <span class="btn-text">🔍 查询人气榜</span>
+                <span class="btn-loading hidden">⏳ 查询中...</span>
+            </button>
+        </div>
+
+        <div id="filter-section" class="filter-section hidden">
+            <div class="filter-row">
+                <div class="filter-item">
+                    <input type="text" id="search-input" placeholder="搜索名称/代码..." oninput="filterData()">
+                </div>
+                <div class="filter-item">
+                    <select id="concept-filter" onchange="filterData()">
+                        <option value="">全部概念</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="hot-only" onchange="filterData()">
+                        <span>仅看涨停股</span>
+                    </label>
+                </div>
+                <div class="filter-item">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="top10-only" onchange="filterData()">
+                        <span>仅看Top10</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="error-message" class="error-message hidden">
+            <span class="error-icon">❌</span>
+            <span id="error-text"></span>
+        </div>
+
+        <div id="table-container" class="table-container hidden">
+            <table class="stock-table">
+                <thead>
+                    <tr>
+                        <th class="col-rank">排名</th>
+                        <th class="col-name">名称</th>
+                        <th class="col-code">代码</th>
+                        <th class="col-change">涨跌幅</th>
+                        <th class="col-boards">连板数</th>
+                        <th class="col-tier">所属梯队</th>
+                        <th class="col-concept">概念标签</th>
+                        <th class="col-analysis">异动解读</th>
+                    </tr>
+                </thead>
+                <tbody id="stock-table-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="summary-section" class="summary-section hidden">
+            <div class="summary-item">
+                <span class="summary-label">📊 人气主线：</span>
+                <span id="summary-main" class="summary-value"></span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">🔥 涨停占比：</span>
+                <span id="summary-hot" class="summary-value"></span>
+            </div>
+        </div>
+
+        <footer id="footer-info" class="footer-info hidden">
+            <div class="footer-item">
+                <span class="footer-label">数据来源：</span>
+                <span id="data-source"></span>
+            </div>
+            <div class="footer-item">
+                <span class="footer-label">采集时间：</span>
+                <span id="collection-time"></span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 股票详情模态框 -->
+    <div id="stock-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">股票详情</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-tabs">
+                <button class="tab-btn active" onclick="switchTab('minute', event)">分时线</button>
+                <button class="tab-btn" onclick="switchTab('daily', event)">日K线</button>
+            </div>
+            <div class="modal-body">
+                <div id="chart-container" style="width: 100%; height: 400px;"></div>
+                <div class="news-section">
+                    <h3 class="news-header">近期资讯</h3>
+                    <div id="news-list" class="news-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
+
+
+
