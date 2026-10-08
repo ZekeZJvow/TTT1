@@ -892,7 +892,7 @@ body {
 }
 .top-stocks-table { font-size: .86rem; }
 .top-stocks-table td { padding: 8px 10px; white-space: nowrap; }
-.top-stocks-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.top-stocks-table th.num, .top-stocks-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .top-stocks-table td.mono { font-family: ui-monospace, Consolas, monospace; color: #9aa0a6; }
 .top-stocks-table td.dim { color: #8a8a8a; }
 .top-stocks-table td.up { color: #e74c3c; }
