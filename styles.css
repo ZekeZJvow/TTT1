@@ -866,7 +866,7 @@ body {
 .chip-d1.up { color: #e74c3c; }
 .chip-d1.down { color: #2ecc71; }
 .chip-d5 { color: #8a8a8a; font-size: .72rem; }
-.hot-themes-note { color: #7a7a7a; font-size: .76rem; margin-top: 12px; line-height: 1.7; }
+.hot-themes-note { color: #7a7a7a; font-size: .76rem; margin: 14px 0; line-height: 1.7; }
 
 
 .theme-auto-tip {
