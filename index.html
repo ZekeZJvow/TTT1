@@ -3,105 +3,464 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A股人气榜查询</title>
+    <title>A股人气雷达</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="echarts.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js';document.head.appendChild(s);"></script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23e74c3c'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>股</text></svg>">
 </head>
 <body>
     <div class="container">
         <header class="header">
-            <h1>📈 A股人气榜查询</h1>
-            <p class="subtitle">同花顺个股人气榜 Top 30 · 收盘后数据</p>
+            <h1>📈 A股人气雷达</h1>
+            <p class="subtitle">人气榜 · 题材热度 · 首板选股 · 数据复盘</p>
         </header>
 
-        <div id="degrade-notice" class="degrade-notice hidden">
-            ⚠️ 已降级至东方财富热股榜
-        </div>
+        <nav class="mode-tabs">
+            <button id="mode-hotlist" class="mode-btn active" onclick="switchMode('hotlist', event)">📊 人气榜查询</button>
+            <button id="mode-screen" class="mode-btn" onclick="switchMode('screen', event)">🎯 动态选股</button>
+            <button id="mode-theme" class="mode-btn" onclick="switchMode('theme', event)">🔥 当前题材热度</button>
+            <button id="mode-db" class="mode-btn" onclick="switchMode('db', event)">🗄️ 数据管理</button>
+        </nav>
 
-        <div id="trading-day-info" class="trading-day-info hidden">
-            <span class="label">数据所属交易日：</span>
-            <span id="trading-day" class="date"></span>
-            <span id="trading-day-message" class="message"></span>
-        </div>
+        <!-- ============ 面板一：人气榜 ============ -->
+        <section id="panel-hotlist" class="panel">
+            <div id="degrade-notice" class="degrade-notice hidden">
+                ⚠️ 已降级至东方财富热股榜
+            </div>
 
-        <div class="query-section">
-            <button id="query-btn" class="query-btn" onclick="fetchData()">
-                <span class="btn-text">🔍 查询人气榜</span>
-                <span class="btn-loading hidden">⏳ 查询中...</span>
-            </button>
-        </div>
+            <div id="trading-day-info" class="trading-day-info hidden">
+                <span class="label">数据所属交易日：</span>
+                <span id="trading-day" class="date"></span>
+                <span id="trading-day-message" class="message"></span>
+            </div>
 
-        <div id="filter-section" class="filter-section hidden">
-            <div class="filter-row">
-                <div class="filter-item">
-                    <input type="text" id="search-input" placeholder="搜索名称/代码..." oninput="filterData()">
+            <div class="query-section">
+                <div class="date-row">
+                    <span class="date-row-label">日期范围：</span>
+                    <div class="date-range-box">
+                        <input type="date" id="hotlist-date-start" onchange="onHotlistRangeChange()" title="开始日期">
+                        <span class="range-sep">~</span>
+                        <input type="date" id="hotlist-date-end" onchange="onHotlistRangeChange()" title="结束日期">
+                    </div>
+                    <button class="mini-btn" onclick="quickRange(7)">近7天</button>
+                    <button class="mini-btn" onclick="quickRange(30)">近30天</button>
+                    <button class="mini-btn" onclick="quickRange(90)">近90天</button>
+                    <button class="mini-btn" onclick="clearHotlistDate()">看最新</button>
                 </div>
-                <div class="filter-item">
-                    <select id="concept-filter" onchange="filterData()">
-                        <option value="">全部概念</option>
+                <div id="hotlist-range-summary" class="range-summary hidden"></div>
+                <div id="hotlist-day-chips" class="day-chips hidden"></div>
+                <button id="query-btn" class="query-btn" onclick="fetchData()">
+                    <span class="btn-text">🔍 查询人气榜</span>
+                    <span class="btn-loading hidden">⏳ 查询中...</span>
+                </button>
+            </div>
+
+            <div id="empty-history" class="empty-history hidden"></div>
+
+            <div id="filter-section" class="filter-section hidden">
+                <div class="filter-row">
+                    <div class="filter-item">
+                        <input type="text" id="search-input" placeholder="搜索名称/代码..." oninput="filterData()">
+                    </div>
+                    <div class="filter-item">
+                        <select id="concept-filter" onchange="filterData()">
+                            <option value="">全部概念</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="hot-only" onchange="filterData()">
+                            <span>仅看涨停股</span>
+                        </label>
+                    </div>
+                    <div class="filter-item">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="top10-only" onchange="filterData()">
+                            <span>仅看Top10</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div id="error-message" class="error-message hidden">
+                <span class="error-icon">❌</span>
+                <span id="error-text"></span>
+            </div>
+
+            <div id="table-container" class="table-container hidden">
+                <table class="stock-table">
+                    <thead>
+                        <tr>
+                            <th class="col-rank">排名</th>
+                            <th class="col-name">名称</th>
+                            <th class="col-code">代码</th>
+                            <th class="col-change">涨跌幅</th>
+                            <th class="col-boards">连板数</th>
+                        <th class="col-streak">连续上榜</th>
+                            <th class="col-tier">所属梯队</th>
+                            <th class="col-concept">概念标签</th>
+                            <th class="col-analysis">异动解读</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-table-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="summary-section" class="summary-section hidden">
+                <div class="summary-item">
+                    <span class="summary-label">📊 人气主线：</span>
+                    <span id="summary-main" class="summary-value"></span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">🔥 涨停占比：</span>
+                    <span id="summary-hot" class="summary-value"></span>
+                </div>
+            </div>
+
+            <footer id="footer-info" class="footer-info hidden">
+                <div class="footer-item">
+                    <span class="footer-label">数据来源：</span>
+                    <span id="data-source"></span>
+                </div>
+                <div class="footer-item">
+                    <span class="footer-label">采集时间：</span>
+                    <span id="collection-time"></span>
+                </div>
+            </footer>
+        </section>
+
+        <!-- ============ 面板二：动态选股 ============ -->
+        <section id="panel-screen" class="panel hidden">
+            <div class="screen-intro">
+                <h2>动态选股 · 参数化扫描</h2>
+                <p class="screen-desc">
+                    输入任意交易日，系统自动<b>推导前一交易日</b>、扫描<b>全市场</b>日K，
+                    按「昨日未涨停 + 今日盘中冲高 &gt; 9%」筛出<b>首板启动股</b>，并与涨停池做<b>语义交叉校验</b>。
+                </p>
+                <div class="screen-rule">
+                    <div class="rule-item"><span class="rule-tag">条件①</span> 前一交易日 (D-1) 首次涨停时间取反 → <b>D-1 全天未触及涨停价</b></div>
+                    <div class="rule-item"><span class="rule-tag">条件②</span> (D 最高价 − D-1 收盘价) ÷ D-1 收盘价 <b>&gt; 0.09</b></div>
+                    <div class="rule-item"><span class="rule-tag">条件③</span> <b>沪深主板</b> 且 <b>非 ST</b></div>
+                </div>
+            </div>
+
+            <div class="screen-form">
+                <div class="screen-date-wrap">
+                    <label for="screen-date">目标日期 (D)</label>
+                    <input type="date" id="screen-date">
+                </div>
+                <button id="screen-btn" class="query-btn" onclick="startScreen()">
+                    <span class="btn-text">🎯 开始扫描</span>
+                    <span class="btn-loading hidden">⏳ 扫描中...</span>
+                </button>
+            </div>
+            <p class="screen-tip">首次扫描全市场约需 30 秒，同一日期结果会缓存，重复查询秒出。</p>
+
+            <div id="screen-progress" class="screen-progress hidden">
+                <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+                <div id="progress-text" class="progress-text"></div>
+            </div>
+
+            <div id="screen-error" class="error-message hidden">
+                <span class="error-icon">❌</span>
+                <span id="screen-error-text"></span>
+                <div id="screen-error-hint" class="error-hint"></div>
+            </div>
+
+            <div id="screen-result" class="hidden">
+                <div class="screen-meta">
+                    <div class="meta-item"><span class="meta-label">数据所属交易日</span><span id="sc-target" class="meta-value"></span></div>
+                    <div class="meta-item"><span class="meta-label">前一交易日</span><span id="sc-prev" class="meta-value"></span></div>
+                    <div class="meta-item"><span class="meta-label">扫描范围</span><span id="sc-universe" class="meta-value"></span></div>
+                    <div class="meta-item"><span class="meta-label">耗时</span><span id="sc-elapsed" class="meta-value"></span></div>
+                </div>
+
+                <div class="funnel-box">
+                    <h3>🎯 选股漏斗</h3>
+                    <div id="funnel-body"></div>
+                </div>
+
+                <div class="verify-box" id="verify-box"></div>
+
+                <div class="sub-tabs">
+                    <button class="sub-btn active" data-key="rows" onclick="switchScreenTable('rows', event)">入选池 <em id="cnt-rows">0</em></button>
+                    <button class="sub-btn" data-key="brokenRows" onclick="switchScreenTable('brokenRows', event)">冲高未封 <em id="cnt-broken">0</em></button>
+                    <button class="sub-btn" data-key="removedRows" onclick="switchScreenTable('removedRows', event)">被条件①剔除 <em id="cnt-removed">0</em></button>
+                </div>
+
+                <div class="table-container">
+                    <table class="stock-table screen-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-key="code" data-type="text" onclick="sortScreenTable('code','text',this)">代码<span class="sort-ind"></span></th>
+                                <th class="sortable" data-key="name" data-type="text" onclick="sortScreenTable('name','text',this)">名称<span class="sort-ind"></span></th>
+                                <th class="num sortable" data-key="gainClose" data-type="num" onclick="sortScreenTable('gainClose','num',this)">涨跌幅<span class="sort-ind"></span></th>
+                                <th class="num sortable" data-key="high" data-type="num" onclick="sortScreenTable('high','num',this)">最高价<span class="sort-ind"></span></th>
+                                <th class="num sortable" data-key="close" data-type="num" onclick="sortScreenTable('close','num',this)">收盘价<span class="sort-ind"></span></th>
+                                <th class="num sortable" data-key="gainHigh" data-type="num" onclick="sortScreenTable('gainHigh','num',this)">最高涨幅<span class="sort-ind"></span></th>
+                                <th class="sortable" data-key="firstSeal" data-type="text" onclick="sortScreenTable('firstSeal','text',this)">首次封板时间<span class="sort-ind"></span></th>
+                                <th class="num sortable" data-key="boards" data-type="num" onclick="sortScreenTable('boards','num',this)">连板<span class="sort-ind"></span></th>
+                                <th class="sortable" data-key="sector" data-type="text" onclick="sortScreenTable('sector','text',this)">所属行业<span class="sort-ind"></span></th>
+                                <th class="sortable" data-key="state" data-type="text" onclick="sortScreenTable('state','text',this)">状态<span class="sort-ind"></span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="screen-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="screen-actions">
+                    <button class="export-btn" onclick="exportScreenReport()">📥 导出 HTML 报告</button>
+                </div>
+
+                <div class="screen-foot" id="screen-foot"></div>
+            </div>
+        </section>
+
+        <!-- ============ 面板三：当前题材热度 ============ -->
+        <section id="panel-theme" class="panel hidden">
+            <div class="screen-intro">
+                <h2>当前题材热度 · 实时排名</h2>
+                <p class="screen-desc">
+                    程序自动采集<b>三类当日事件</b>：同花顺<b>热门话题</b>（带热度值）、<b>人气榜</b>异动解读、<b>个股异动</b>原因。
+                    事件文本匹配同花顺指数目录归类为<b>题材</b>，再用<b>关键词词典 + 涨跌方向</b>判定利好/利空。
+                    题材热度 = <b>话题热度(万) + Σ(31 − 人气榜排名)</b>，据此排序并只保留<b>利好题材</b>；
+                    每个题材取人气靠前的 20 只成分股，合并去重后<b>按人气排名输出前 50 只</b>。
+                    无需手动输入，打开即自动完成。
+                </p>
+            </div>
+            <div class="hot-themes-box">
+                <div class="hot-themes-head">
+                    <h3>📰 当日事件驱动题材 · 自动发现</h3>
+                    <button class="mini-btn" onclick="clearThemeDate()">看最新</button>
+                    <button id="theme-refresh" class="mini-btn" onclick="loadHotThemes(true)">↻ 重新扫描</button>
+                </div>
+                <div class="theme-date-bar">
+                    <span class="dim">查看日期（库中已有题材数据的交易日，点一下即可）：</span>
+                    <span id="theme-date-chips"></span>
+                </div>
+                <div id="hot-themes" class="hot-themes">
+                    <span class="hot-themes-loading">正在采集当日事件并识别题材…</span>
+                </div>
+                <div id="hot-themes-note" class="hot-themes-note"></div>
+                <div id="theme-auto-tip" class="theme-auto-tip"></div>
+                <div id="theme-reasons" class="theme-reasons hidden">
+                    <h3>📋 各题材利好原因解读</h3>
+                    <div id="theme-reasons-body"></div>
+                </div>
+            </div>
+
+            <div class="top-stocks-box">
+                <div class="hot-themes-head">
+                    <h3>📈 利好题材个股 · 按人气排序 Top 50</h3>
+                    <button class="mini-btn" onclick="loadHotThemes(true)">↻ 刷新</button>
+                </div>
+                <div id="top-filter-bar" class="top-filter-bar hidden">
+                    <span id="top-filter-label" class="top-filter-label"></span>
+                    <button class="mini-btn" onclick="clearTopFilter()">✕ 显示全部</button>
+                    <button class="mini-btn" onclick="runDeepAnalysis()">🔍 该题材深度分析</button>
+                </div>
+                <div id="top-stocks-note" class="hot-themes-note"></div>
+                <div class="table-container">
+                    <table class="stock-table top-stocks-table">
+                        <thead>
+                            <tr>
+                                <th class="num">排名</th>
+                                <th>名称</th>
+                                <th>代码</th>
+                                <th>所属题材</th>
+                                <th>人气</th>
+                                <th class="num">连续上榜</th>
+                                <th class="num">题材热度</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-stocks-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="screen-form theme-form">
+                <div class="screen-date-wrap">
+                    <label for="theme-input">或手动输入题材关键词</label>
+                    <input type="text" id="theme-input" placeholder="例如：房贷贴息、房地产、人形机器人" onkeydown="if(event.key==='Enter'){fetchThemeHeat()}">
+                </div>
+                <button id="theme-btn" class="query-btn" onclick="fetchThemeHeat()">
+                    <span class="btn-text">🔍 查询当前题材热度</span>
+                    <span class="btn-loading hidden">⏳ 查询中...</span>
+                </button>
+            </div>
+            <p class="screen-tip">点击上方题材标签可直接查询；也可手动输入题材名。同一关键词结果缓存 5 分钟。未上龙虎榜不代表没有机构买入。</p>
+            <div id="theme-error" class="error-message hidden">
+                <span class="error-icon">❌</span>
+                <span id="theme-error-text"></span>
+            </div>
+            <div id="theme-result" class="hidden">
+                <div class="screen-meta">
+                    <div class="meta-item"><span class="meta-label">题材</span><span id="th-theme" class="meta-value"></span></div>
+                    <div class="meta-item"><span class="meta-label">数据日期</span><span id="th-date" class="meta-value"></span></div>
+                    <div class="meta-item"><span class="meta-label">候选池</span><span id="th-universe" class="meta-value"></span></div>
+                    <div class="meta-item"><span class="meta-label">耗时</span><span id="th-elapsed" class="meta-value"></span></div>
+                </div>
+                <div class="theme-tags" id="theme-tags"></div>
+                <div class="table-container">
+                    <table class="stock-table theme-table">
+                        <thead>
+                            <tr>
+                                <th class="num">排名</th>
+                                <th>名称</th>
+                                <th>代码</th>
+                                <th>所属方向</th>
+                                <th class="num">当前热度</th>
+                                <th class="num">近3日变化</th>
+                                <th class="num">龙虎榜净额</th>
+                                <th class="num">机构净额</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="theme-table-body"></tbody>
+                    </table>
+                </div>
+                <div class="screen-foot" id="theme-foot"></div>
+            </div>
+        </section>
+
+        <!-- ============ 面板四：数据管理 ============ -->
+        <section id="panel-db" class="panel hidden">
+            <h2>🗄️ 数据管理</h2>
+            <p class="screen-desc">
+                查看本地数据仓库中已保存的数据（哪些交易日、多少条），并可一键清理。
+                程序会自动把抓到的数据落库，历史查询直接读库、不再重复联网抓取。
+            </p>
+
+            <div class="db-cards">
+                <div class="db-card"><div class="db-card-num" id="db-size">-</div><div class="db-card-label">数据库大小</div></div>
+                <div class="db-card"><div class="db-card-num" id="db-rows">-</div><div class="db-card-label">总记录数</div></div>
+                <div class="db-card"><div class="db-card-num" id="db-days">-</div><div class="db-card-label">已存交易日</div></div>
+                <div class="db-card"><div class="db-card-num" id="db-job">-</div><div class="db-card-label">自动抓取</div></div>
+            </div>
+
+            <div class="db-path-line">数据文件：<code id="db-path">-</code></div>
+
+            <div class="db-block">
+                <div class="db-block-head">
+                    <span class="db-block-title">⏰ 自动抓取（每日多时段）</span>
+                    <select id="db-job-select" title="选择要立即执行的任务">
+                        <option value="close">收盘·全量</option>
+                        <option value="morning">早盘·轻量</option>
                     </select>
+                    <button class="mini-btn" onclick="runDailyJob()">立即执行一次</button>
+                    <button class="mini-btn" onclick="loadDbJob()">刷新</button>
                 </div>
-                <div class="filter-item">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="hot-only" onchange="filterData()">
-                        <span>仅看涨停股</span>
-                    </label>
+                <div class="db-job-info" id="db-job-info"><span class="dim">加载中…</span></div>
+            </div>
+
+
+            <div class="db-block">
+                <div class="db-block-head">
+                    <span class="db-block-title">📆 数据覆盖（哪些交易日已有数据）</span>
+                    <select id="db-cov-table" onchange="loadDbCoverage()"
+                            title="全部数据=按交易日历综合看；选某张表=看该表存了哪些日期">
+                        <option value="">全部数据</option>
+                        <option value="hotlist_snapshot">人气榜快照</option>
+                        <option value="daily_kline">日K线</option>
+                        <option value="minute_kline">分时线</option>
+                        <option value="limit_up_pool">涨停/炸板池</option>
+                        <option value="screening_result">选股结果明细</option>
+                        <option value="theme_heat_snapshot">题材热度快照</option>
+                        <option value="theme_top_stock">题材Top50个股</option>
+                        <option value="stock_news">个股资讯公告</option>
+                        <option value="raw_payload">原始响应快照</option>
+                    </select>
+                    <select id="db-coverage-n" onchange="loadDbCoverage()">
+                        <option value="15">最近 15 个交易日</option>
+                        <option value="30" selected>最近 30 个交易日</option>
+                        <option value="60">最近 60 个交易日</option>
+                        <option value="120">最近 120 个交易日</option>
+                    </select>
+                    <button class="mini-btn" onclick="loadDbCoverage()">刷新</button>
                 </div>
-                <div class="filter-item">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="top10-only" onchange="filterData()">
-                        <span>仅看Top10</span>
-                    </label>
+                <div id="db-coverage" class="db-coverage"><span class="dim">加载中…</span></div>
+            </div>
+
+            <div class="db-block">
+                <div class="db-block-head">
+                    <span class="db-block-title">🕰️ 回补历史人气榜</span>
+                    <select id="bf-days">
+                        <option value="10">最近 10 个交易日</option>
+                        <option value="20" selected>最近 20 个交易日</option>
+                        <option value="60">最近 60 个交易日</option>
+                        <option value="120">最近 120 个交易日</option>
+                    </select>
+                    <button class="mini-btn" onclick="loadBackfillMissing()">检查缺失</button>
+                    <button class="mini-btn" onclick="runBackfill()">开始回补</button>
+                </div>
+                <div id="bf-info" class="db-backfill"><span class="dim">点「检查缺失」，看看哪些交易日还没抓到数据</span></div>
+            </div>
+
+            <div class="db-block">
+                <div class="db-block-head">
+                    <span class="db-block-title">📤 数据导出（Excel / CSV）</span>
+                    <input type="date" id="db-export-date" onchange="loadExportInfo()">
+                    <select id="db-export-table">
+                        <option value="">全部数据（Excel 多工作表）</option>
+                        <option value="hotlist_snapshot">人气榜</option>
+                        <option value="daily_kline">日K线</option>
+                        <option value="limit_up_pool">涨停炸板池</option>
+                        <option value="screening_result">选股结果</option>
+                        <option value="theme_heat_snapshot">题材热度</option>
+                        <option value="theme_top_stock">题材人气股</option>
+                        <option value="stock_news">个股资讯</option>
+                        <option value="minute_kline">分时线</option>
+                    </select>
+                    <button class="mini-btn" onclick="exportDb('csv')">导出 CSV</button>
+                    <button class="mini-btn" onclick="exportDb('xlsx')">导出 Excel</button>
+                </div>
+                <div id="db-export-info" class="db-export-info"><span class="dim">选择日期后可查看该日可导出内容</span></div>
+            </div>
+
+            <div class="db-block">
+                <div class="db-block-head">
+                    <span class="db-block-title">🛡️ 数据完整性校验</span>
+                    <button class="mini-btn" onclick="loadIntegrity()">立即校验</button>
+                </div>
+                <div id="db-integrity" class="db-integrity"><span class="dim">点击「立即校验」，检查最近交易日的数据是否齐全（人气榜/日K/涨停池/题材/选股）。</span></div>
+            </div>
+
+            <div class="db-block">
+                <div class="db-block-head">
+                    <span class="db-block-title">🔔 结果推送（邮件 / 企业微信 / 钉钉 / 微信）</span>
+                    <button class="mini-btn" onclick="loadNotifyStatus()">刷新</button>
+                    <button class="mini-btn" onclick="sendTestNotify()">发送测试通知</button>
+                </div>
+                <div id="db-notify" class="db-notify"><span class="dim">加载中…</span></div>
+            </div>
+
+            <div class="db-block db-danger">
+                <div class="db-block-head"><span class="db-block-title">🧹 清理数据</span></div>
+                <div class="db-danger-row">
+                    <span>分时线（体量最大，建议只留近期）</span>
+                    <select id="db-keep-days">
+                        <option value="5">保留最近 5 个交易日</option>
+                        <option value="10">保留最近 10 个交易日</option>
+                        <option value="30" selected>保留最近 30 个交易日</option>
+                        <option value="60">保留最近 60 个交易日</option>
+                    </select>
+                    <button class="mini-btn danger" onclick="cleanupDb('minute')">清理分时</button>
+                </div>
+                <div class="db-danger-row">
+                    <span>删除指定日期之前的全部数据</span>
+                    <input type="date" id="db-before-date">
+                    <button class="mini-btn danger" onclick="cleanupDb('before')">按日期清理</button>
+                </div>
+                <div class="db-danger-row">
+                    <span>清空全部业务数据（表结构保留，不可恢复）</span>
+                    <button class="mini-btn danger" onclick="cleanupDb('all')">清空全部</button>
                 </div>
             </div>
-        </div>
 
-        <div id="error-message" class="error-message hidden">
-            <span class="error-icon">❌</span>
-            <span id="error-text"></span>
-        </div>
+            <div id="db-message" class="db-message hidden"></div>
+        </section>
 
-        <div id="table-container" class="table-container hidden">
-            <table class="stock-table">
-                <thead>
-                    <tr>
-                        <th class="col-rank">排名</th>
-                        <th class="col-name">名称</th>
-                        <th class="col-code">代码</th>
-                        <th class="col-change">涨跌幅</th>
-                        <th class="col-boards">连板数</th>
-                        <th class="col-tier">所属梯队</th>
-                        <th class="col-concept">概念标签</th>
-                        <th class="col-analysis">异动解读</th>
-                    </tr>
-                </thead>
-                <tbody id="stock-table-body">
-                </tbody>
-            </table>
-        </div>
-
-        <div id="summary-section" class="summary-section hidden">
-            <div class="summary-item">
-                <span class="summary-label">📊 人气主线：</span>
-                <span id="summary-main" class="summary-value"></span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">🔥 涨停占比：</span>
-                <span id="summary-hot" class="summary-value"></span>
-            </div>
-        </div>
-
-        <footer id="footer-info" class="footer-info hidden">
-            <div class="footer-item">
-                <span class="footer-label">数据来源：</span>
-                <span id="data-source"></span>
-            </div>
-            <div class="footer-item">
-                <span class="footer-label">采集时间：</span>
-                <span id="collection-time"></span>
-            </div>
-        </footer>
     </div>
 
     <!-- 股票详情模态框 -->
@@ -128,7 +487,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-
-
-
-

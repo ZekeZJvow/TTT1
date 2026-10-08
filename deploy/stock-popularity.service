@@ -1,0 +1,29 @@
+# =============================================================
+# A股人气榜 · systemd 守护服务
+# 放置路径：/etc/systemd/system/stock-popularity.service
+# 作用：开机自启 + 崩溃自动重启
+# =============================================================
+
+[Unit]
+Description=A-Share Hot List Web Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/stock-popularity
+Environment=PORT=5000
+Environment=PYTHONUNBUFFERED=1
+
+# 用虚拟环境里的 python 启动（不要用 debug 模式）
+ExecStart=/opt/stock-popularity/venv/bin/python serve.py
+
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/stock-popularity.log
+StandardError=append:/var/log/stock-popularity.log
+
+[Install]
+WantedBy=multi-user.target

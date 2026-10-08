@@ -1,0 +1,32 @@
+{
+  "_说明": "把这个文件改名为 notify.json，放在 exe 同目录即可开启推送。不需要的通道留空或删除即可。",
+
+  "enabled": true,
+  "notify_on": "always",
+
+  "_notify_on说明": "always=每天抓完都发；issues_only=只在数据校验不通过时发",
+
+  "email": {
+    "_说明": "QQ邮箱/163/Gmail 等。password 填【授权码】不是登录密码",
+    "host": "smtp.qq.com",
+    "port": 465,
+    "ssl": true,
+    "user": "你的邮箱@qq.com",
+    "password": "邮箱授权码",
+    "sender_name": "A股人气榜",
+    "to": ["收件人@example.com"]
+  },
+
+  "wecom_webhook": "",
+  "_wecom说明": "企业微信群机器人 Webhook，形如 https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx",
+
+  "dingtalk_webhook": "",
+  "dingtalk_secret": "",
+  "_dingtalk说明": "钉钉群机器人 Webhook；若安全设置选「加签」，把密钥填到 dingtalk_secret",
+
+  "serverchan_key": "",
+  "_serverchan说明": "Server酱 SendKey，可推送到微信（sct.ftqq.com 申请）",
+
+  "webhook_url": "",
+  "_webhook说明": "通用 Webhook：程序会 POST JSON {\"title\",\"text\",\"trade_date\",\"ok\"} 到你填的地址"
+}

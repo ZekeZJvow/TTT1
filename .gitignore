@@ -27,3 +27,42 @@ Desktop.ini
 # Temporary files
 *.tmp
 *.bak
+
+# Runtime
+service.log
+
+# Runtime cache
+*.sqlite3
+# ============================================================
+# A股人气雷达 —— 项目补充规则
+# ============================================================
+
+# 本地数据仓库（含真实行情数据，体积大且属运行产物）
+data/
+backup/
+
+# 测试/截图产物
+_test_artifacts/
+docs/*.png
+docs/*.jpg
+
+# 打包产物与发布包（体积大）
+*.zip
+*.spec
+A股人气榜_v*/
+A股人气雷达_v*/
+build_out/
+dist_out/
+
+# 敏感配置：可能含邮箱授权码 / Webhook 密钥 —— 切勿提交
+notify.json
+notify.local.json
+.env
+.env.*
+
+# 工具缓存
+.workbuddy/
+theme_heat_cache.sqlite3
+
+# 开发期临时脚本
+tools/_dev_scratch/

@@ -139,7 +139,7 @@ def test_footer(data):
 
 def main():
     print("\n" + "=" * 60)
-    print("   A股人气榜查询 - 自动化测试")
+    print("   A股人气雷达 - 自动化测试")
     print("=" * 60)
     data = test_api_hotlist()
     if not data:
