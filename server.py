@@ -832,6 +832,26 @@ def screen_sync():
     return jsonify(res)
 
 
+def _fill_theme_change(res, trade_date):
+    """给题材 Top50 补「涨跌幅」：本地库回放时用日K，实时构建时数据已自带"""
+    rows = (res or {}).get("topStocks") or []
+    if not rows or not trade_date:
+        return res
+    if all(r.get("change") is not None for r in rows):
+        return res
+    try:
+        cmap = _mdb.kline_change_map(trade_date)
+    except Exception:
+        cmap = {}
+    if cmap:
+        for r in rows:
+            if r.get("change") is None:
+                v = cmap.get(str(r.get("ticker") or ""))
+                if v is not None:
+                    r["change"] = v
+    return res
+
+
 @app.route("/api/event-themes")
 def event_themes_api():
     """当日事件驱动题材 + 人气排序"""
@@ -851,6 +871,7 @@ def event_themes_api():
         if db_res and db_res.get("success"):
             db_res["from_db"] = True
             db_res["trade_date"] = req_date
+            _fill_theme_change(db_res, req_date)
             attach_streaks(db_res.get("topStocks") or [], req_date, code_key="ticker")
             return jsonify(db_res)
         # 用 200 + 明确错误码，避免浏览器控制台出现无意义的 404
@@ -869,6 +890,7 @@ def event_themes_api():
         if _db_theme and _db_theme.get("success"):
             _db_theme["from_db"] = True
             _db_theme["trade_date"] = _sess
+            _fill_theme_change(_db_theme, _sess)
             attach_streaks(_db_theme.get("topStocks") or [], _sess, code_key="ticker")
             return jsonify(_db_theme)
     try:

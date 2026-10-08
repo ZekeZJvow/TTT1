@@ -485,6 +485,32 @@ def _build_uncached(limit: int, stock_limit: int, min_heat: int) -> Dict[str, An
 
     top_stocks = sorted(merged.values(), key=_sk)[:50]
 
+    # ⑦ 补涨跌幅：优先用当日人气榜的实时涨跌幅，其余用行情快照补（失败则留空）
+    def _num_or_none(v):
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None
+        if f != f:                      # NaN
+            return None
+        return round(f, 2)
+
+    hot_change = {s.get("thscode"): s.get("change")
+                  for s in hot if s.get("change") is not None}
+    missing = [x for x in top_stocks
+               if _num_or_none(hot_change.get(x.get("thscode"))) is None and x.get("thscode")]
+    _snap = {}
+    if missing:
+        try:
+            _snap = T._market_snapshot([x["thscode"] for x in missing])
+        except Exception:
+            _snap = {}
+    for x in top_stocks:
+        v = _num_or_none(hot_change.get(x.get("thscode")))
+        if v is None:
+            v = _num_or_none((_snap.get(x.get("thscode")) or {}).get("price_change_ratio_pct"))
+        x["change"] = v
+
     for th in rows:
         th.pop("members", None)
 

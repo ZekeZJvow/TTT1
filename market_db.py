@@ -1437,6 +1437,26 @@ def load_event_themes(trade_date):
     return load_payload("themes", trade_date)
 
 
+def kline_change_map(trade_date):
+    """某交易日的个股涨跌幅（来自本地日K），供题材 Top50 历史回放时补「涨跌幅」列"""
+    if not trade_date:
+        return {}
+
+    def _f(conn):
+        rows = conn.execute(
+            "SELECT `stock_code`,`change_pct` FROM `daily_kline` "
+            "WHERE `trade_date`=? AND `change_pct` IS NOT NULL",
+            (trade_date,)).fetchall()
+        out = {}
+        for r in rows:
+            try:
+                out[str(r["stock_code"])] = round(float(r["change_pct"]), 2)
+            except (TypeError, ValueError):
+                continue
+        return out
+    return _read(_f, {}) or {}
+
+
 def theme_dates(limit=30):
     def _f(conn):
         rows = conn.execute("SELECT DISTINCT `trade_date` FROM `theme_heat_snapshot` "

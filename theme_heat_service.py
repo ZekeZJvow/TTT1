@@ -27,7 +27,7 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-_CACHE_NAMESPACE = "v2"
+_CACHE_NAMESPACE = "v3"   # v3: 题材 Top50 增加「涨跌幅」，命名空间 +1 强制重建
 
 _CACHE: Dict[str, Tuple[float, Any]] = {}
 _CACHE_LOCK = threading.RLock()

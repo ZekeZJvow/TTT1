@@ -1206,7 +1206,7 @@ function renderTopStocksTable() {
     }
 
     if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">该题材在 Top50 中没有股票</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-cell">该题材在 Top50 中没有股票</td></tr>';
     } else {
         tbody.innerHTML = list.map(function (s, i) {
             let hk, cls;
@@ -1214,10 +1214,19 @@ function renderTopStocksTable() {
             else if (s.trendRank) { hk = '热度第 ' + s.trendRank + ' 名'; cls = 'up'; }
             else { hk = '未上榜'; cls = 'dim'; }
             const badge = s.hotRank ? '<span class="rank-badge rank-hot">' + (i + 1) + '</span>' : (i + 1);
+            let chgText = '无', chgCls = 'dim';
+            if (s.change !== null && s.change !== undefined && s.change !== '') {
+                const cv = Number(s.change);
+                if (!isNaN(cv)) {
+                    chgCls = cv >= 0 ? 'up' : 'down';
+                    chgText = (cv >= 0 ? '+' : '') + cv.toFixed(2) + '%';
+                }
+            }
             return '<tr>' +
                 '<td class="num">' + badge + '</td>' +
-                '<td class="name-cell"><a class="stock-name-link" onclick="openStockChart(\'' + s.ticker + '\',\'' + escHtml(s.name) + '\')">' + escHtml(s.name) + '</a></td>' +
                 '<td class="mono">' + escHtml(s.ticker) + '</td>' +
+                '<td class="name-cell"><a class="stock-name-link" onclick="openStockChart(\'' + s.ticker + '\',\'' + escHtml(s.name) + '\')">' + escHtml(s.name) + '</a></td>' +
+                '<td class="num ' + chgCls + '">' + chgText + '</td>' +
                 '<td class="dim">' + escHtml((s.themes || []).join('、')) + '</td>' +
                 '<td class="' + cls + '">' + hk + '</td>' +
                 '<td class="num">' + streakTagHtml(s.streak_days) + '</td>' +

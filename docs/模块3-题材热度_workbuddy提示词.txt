@@ -59,7 +59,7 @@ Tab 切换时请求 /api/event-themes?limit=6&stocks=20[&date=] 并渲染四块�
 1) 题材标签 #hot-themes：每个题材一个 <button class="theme-chip" onclick="filterTopByTheme('<名>',this)" title="<关联话题标题换行分隔/无关联话题>">，内含 chip-name「序号. 题材名」、chip-d1「利好 +netScore」（netScore>=0 加 up 类否则 down）、chip-d5「话题X万 · N只人气股」（无话题热度显示"无话题"）。
 2) 说明 #hot-themes-note：「回看交易日 <date>　|　事件源：热门话题 N 条 + 人气榜 N 只 + 异动 N 只　|　识别题材 N 个（利好 N / 利空 N）　|　热度 = 话题热度(万) + Σ(31−人气榜排名)　|　<caveat>」；非回看模式首段改成「数据 <as_of>」。
 3) 利好原因解读 #theme-reasons-body：每题材一张 reason-card，含头部「N. 题材名 / 利好 +netScore / 热度 heatScore」、事件区（话题标题 + hot/10000 保留1位万 + 摘要；无话题时提示"无关联热门话题，仅由人气股异动解读判定"）、个股区（stockReasons：名称 + 人气榜第N名 + 原因）、依据区（命中利好词 chips；无则"无命中利好词，由涨停/涨跌方向判定"）。
-4) Top50 表 #top-stocks-body 列：排名 | 名称 | 代码 | 所属题材 | 人气 | 连续上榜 | 题材热度。人气列：有 hotRank→"人气榜第 N 名"（强红）、有 trendRank→"热度第 N 名"（红）、否则"未上榜"（灰）；hotRank 行的排名用高亮徽章；名称可点击打开个股 K 线。note 文案：「合并 N 个利好题材的成分股（每题材取人气靠前的 20 只），去重后 N 只 → 按人气排名取前 N 只（其中 N 只有明确人气排名）。点击题材标签可筛选，点击名称可看 K 线。」
+4) Top50 表 #top-stocks-body 列：排名 | 代码 | 名称 | 涨跌幅 | 所属题材 | 人气 | 连续上榜 | 题材热度。人气列：有 hotRank→"人气榜第 N 名"（强红）、有 trendRank→"热度第 N 名"（红）、否则"未上榜"（灰）；hotRank 行的排名用高亮徽章；名称可点击打开个股 K 线。note 文案：「合并 N 个利好题材的成分股（每题材取人气靠前的 20 只），去重后 N 只 → 按人气排名取前 N 只（其中 N 只有明确人气排名）。点击题材标签可筛选，点击名称可看 K 线。」
 交互：filterTopByTheme 点标签筛选 Top50 中属于该题材的股票（再点取消、加 .chip-active、平滑滚动到表格）；clearTopFilter 清空；首次加载自动把最热题材填入手动输入框并触发一次分析。
 日期块 #theme-date-chips：从 /api/themes/dates 渲染 <span class="day-chip has[ sel]" title="点击查看 <日期> 的题材数据" onclick="pickThemeDate('<日期>')">，点一下切该日、再点"看最新"回最新；无数据时显示"暂无已保存的题材数据"。
 错误分支：error=="NO_DATA"→提示该日无存档（不回退实时）；error=="CLI_MISSING"→提示需要 hithink-finance 组件（不回退）；其他失败→回退到 /api/theme-hot?limit=12&lookback=5 的板块动量榜。
