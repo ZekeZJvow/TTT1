@@ -30,7 +30,7 @@ CACHE_TTL = 600  # 10分钟
 
 # ==================== 交易日历 ====================
 
-_CAL_CACHE = {"days": [], "ts": 0.0}
+_CAL_CACHE = {"days": [], "ts": 0.0, "ttl": 1800}
 _CAL_TTL = 1800  # 交易日历缓存 30 分钟
 
 
@@ -42,10 +42,12 @@ def _trading_calendar(n=60):
     """
     now_ts = time.time()
     cached = _CAL_CACHE["days"]
-    if cached and (now_ts - _CAL_CACHE["ts"]) < _CAL_TTL:
+    if cached and (now_ts - _CAL_CACHE["ts"]) < _CAL_CACHE.get("ttl", _CAL_TTL):
         return cached[:n]
 
     want = max(n, 60)
+    today = datetime.now().strftime('%Y-%m-%d')
+    is_weekday = datetime.now().isoweekday() <= 5
     # 1) 读库优先
     days = _mdb.load_calendar(want)
     need_net = True
@@ -55,7 +57,11 @@ def _trading_calendar(n=60):
         except Exception:
             gap = 999
         # 库中最新交易日够新 且 条数够 -> 直接用库
-        need_net = (gap > 5) or (len(days) < want)
+        # 关键：工作日若库里最新交易日 < 今天，必须联网刷新。
+        # 否则「新交易日的第一天」会被当成非交易日：场次日期停在昨天，
+        # 且定时任务（tick 里 today not in days 就 return）会被整体跳过。
+        stale_today = (gap >= 1) and is_weekday
+        need_net = (gap > 5) or (len(days) < want) or stale_today
     # 2) 需要时走接口，并落库
     if need_net:
         try:
@@ -69,6 +75,8 @@ def _trading_calendar(n=60):
     if days:
         _CAL_CACHE["days"] = days
         _CAL_CACHE["ts"] = now_ts
+        # 工作日若日历里仍没有今天（数据源今天还没出 / 今天休市）-> 短缓存，稍后自动重试
+        _CAL_CACHE["ttl"] = 300 if (is_weekday and today not in set(days)) else _CAL_TTL
         return days[:n]
     return cached[:n] if cached else []
 
@@ -896,8 +904,10 @@ def event_themes_api():
     try:
         res = _event_theme.build_event_themes(limit, stocks)
         if res.get("success"):
-            if live:
-                # 只在真实交易时段落库（此时 _sess == 今天），绝不写脏上一交易日
+            # 只有「场次日期就是今天」才落库：
+            #   · 交易日（盘中 / 盘后）-> _sess == 今天 -> 正常存档
+            #   · 周末 / 节假日        -> _sess == 上一交易日 -> 不写，避免覆盖历史存档
+            if _sess == datetime.now().strftime("%Y-%m-%d"):
                 _mdb.save_event_themes(res, trade_date=_sess)
             attach_streaks(res.get("topStocks") or [], _sess, code_key="ticker")
         return jsonify(res)

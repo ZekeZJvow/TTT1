@@ -17,17 +17,34 @@ if errorlevel 1 (
     exit /b 1
 )
 
+set "PROXY=http://127.0.0.1:7897"
+
 echo [1/4] 检查与 GitHub 的连接 ...
-git ls-remote origin >nul 2>nul
-if errorlevel 1 (
-    echo.
-    echo [提示] 现在连不上 GitHub，多半是代理没开。
-    echo        请先启动 Clash，然后重新双击本文件。
-    echo.
-    pause
-    exit /b 1
-)
-echo       连接正常。
+rem 先试直连（Clash 关闭 / TUN 模式时可用），失败再试代理
+git -c http.proxy= -c https.proxy= ls-remote origin >nul 2>nul
+if not errorlevel 1 goto ok_direct
+git -c http.proxy=%PROXY% -c https.proxy=%PROXY% ls-remote origin >nul 2>nul
+if not errorlevel 1 goto ok_proxy
+
+echo.
+echo [提示] 现在连不上 GitHub。请任选其一：
+echo        1) 启动 Clash 后重新双击本文件；或
+echo        2) 确认网络能直接访问 github.com。
+echo.
+pause
+exit /b 1
+
+:ok_direct
+set "GITP=-c http.proxy= -c https.proxy="
+echo       连接正常（直连）。
+goto conn_ok
+
+:ok_proxy
+set "GITP=-c http.proxy=%PROXY% -c https.proxy=%PROXY%"
+echo       连接正常（已自动走 Clash 代理 %PROXY%）。
+goto conn_ok
+
+:conn_ok
 
 echo [2/4] 收集本次改动 ...
 git add -A
@@ -54,10 +71,10 @@ if errorlevel 1 (
 echo       本次说明：%MSG%
 
 echo [4/4] 上传中 ...
-git push
+git %GITP% push
 if errorlevel 1 (
     echo.
-    echo [错误] 上传失败。请检查 Clash 是否开启、网络是否正常，然后重试。
+    echo [错误] 上传失败。请检查网络后重试。
     echo.
     pause
     exit /b 1
