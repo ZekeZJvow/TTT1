@@ -1244,11 +1244,37 @@ def themes_multi_api():
         return (len(dates), 999, r["ticker"])
 
     out_rows = sorted(rows.values(), key=_sk)
+
+    # 再按「日期 -> 该日 Top50 原始顺序」输出一份，供「按日期并列」视图使用
+    by_date_list = {}
+    for d in dates:
+        payload = _mdb.load_event_themes(d) or {}
+        tops = (payload.get("topStocks") or [])[:limit]
+        try:
+            cmap = _mdb.kline_change_map(d)
+        except Exception:
+            cmap = {}
+        lst = []
+        for i, st in enumerate(tops, 1):
+            tk = str(st.get("ticker") or "").strip()
+            if not tk:
+                continue
+            chg = st.get("change")
+            if chg is None:
+                chg = cmap.get(tk)
+            try:
+                chg = None if chg is None else round(float(chg), 2)
+            except (TypeError, ValueError):
+                chg = None
+            lst.append({"rank": i, "ticker": tk, "name": str(st.get("name") or ""), "change": chg})
+        by_date_list[d] = lst
+
     return jsonify({
         "success": True,
         "dates": dates,
         "available": avail[:30],
         "rows": out_rows,
+        "by_date_list": by_date_list,
         "per_date": per_date,
         "stockTotal": len(out_rows),
     })

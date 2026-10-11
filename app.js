@@ -2026,6 +2026,7 @@ let multiDates = [];          // 当前选中的日期（降序）
 let multiAvailable = [];      // 可选的日期
 let multiData = null;
 let multiLoaded = false;
+let multiView = 'date';      // 'date' = 按日期并列（默认）; 'stock' = 按股票对照
 const MULTI_MAX = 6;          // 最多同时对照几个日期
 
 async function loadMulti(force) {
@@ -2068,7 +2069,7 @@ function toggleMultiDate(d) {
     loadMulti(true);
 }
 
-function renderMulti() {
+function renderMultiByStock() {
     if (!multiData) return;
     const dates = multiData.dates || [];
     const rows = multiData.rows || [];
@@ -2115,23 +2116,103 @@ function renderMulti() {
             return '<tr>' + tds + '</tr>';
         }).join('');
     }
+}
 
+// ---- 视图切换 + 公共渲染（日期块 / 股票对照）----
+function switchMultiView(v, ev) {
+    multiView = v || 'date';
+    document.querySelectorAll('#multi-view-tabs .sub-btn').forEach(function (b) { b.classList.remove('active'); });
+    if (ev && ev.target) {
+        const btn = ev.target.closest ? (ev.target.closest('.sub-btn') || ev.target) : ev.target;
+        btn.classList.add('active');
+    }
+    renderMulti();
+}
+
+function renderMulti() {
+    if (!multiData) return;
+    const tbl = document.querySelector('.multi-table');
+    if (tbl) tbl.className = 'stock-table multi-table' + (multiView === 'stock' ? '' : ' by-date');
+    if (multiView === 'stock') renderMultiByStock();
+    else renderMultiByDate();
+    renderMultiChips();
+    renderMultiNote();
+}
+
+function renderMultiChips() {
     const box = document.getElementById('multi-date-chips');
+    if (!box) return;
+    const dates = multiData.dates || [];
     box.innerHTML = (multiAvailable || []).map(function (d) {
         const on = dates.indexOf(d) >= 0 ? ' sel' : '';
         return '<span class="day-chip has' + on + '" style="cursor:pointer" title="点击' +
                (on ? '取消' : '加入') + '对照" onclick="toggleMultiDate(\'' + d + '\')">' +
                escHtml(d) + '</span>';
     }).join('');
+}
 
-    if (note) {
-        const pd = multiData.per_date || {};
-        const cnt = dates.map(function (d) {
-            return d + '（' + ((pd[d] || {}).count || 0) + ' 只）';
-        }).join('　|　');
-        note.textContent = '对照 ' + dates.length + ' 个交易日：' + cnt +
-            '　|　合并去重后共 ' + rows.length + ' 只股票　|　「—」= 该日不在 Top50' +
-            '（个别股票若本地没有当日行情，涨跌幅也显示「—」）';
+function renderMultiNote() {
+    const note = document.getElementById('multi-note');
+    if (!note) return;
+    const dates = multiData.dates || [];
+    const pd = multiData.per_date || {};
+    const cnt = dates.map(function (d) {
+        return d + '（' + ((pd[d] || {}).count || 0) + ' 只）';
+    }).join('　|　');
+    const tail = (multiView === 'stock')
+        ? '同一只股票一行，每列是该日的名次与涨跌幅　|　「—」= 该日不在 Top50'
+        : '每个日期各自一块「排名 | 代码 | 名称 | 涨跌幅」，横向并排　|　「—」= 该日不足 50 只';
+    note.textContent = '对照 ' + dates.length + ' 个交易日：' + cnt + '　|　' + tail +
+        '（个别股票若本地没有当日行情，涨跌幅显示「—」）';
+}
+
+// 按日期并列：每个日期一块独立的「排名 | 代码 | 名称 | 涨跌幅」
+function renderMultiByDate() {
+    const dates = multiData.dates || [];
+    const lists = multiData.by_date_list || {};
+    const thead = document.getElementById('multi-thead');
+    const tbody = document.getElementById('multi-body');
+
+    let h1 = '<tr>', h2 = '<tr>';
+    dates.forEach(function (d, i) {
+        const sep = i > 0 ? ' sep' : '';
+        h1 += '<th class="grp' + sep + '" colspan="4">' + escHtml(d) + '</th>';
+        h2 += '<th class="num' + sep + '">排名</th><th>代码</th><th>名称</th><th class="num">涨跌幅</th>';
+    });
+    thead.innerHTML = h1 + '</tr>' + h2 + '</tr>';
+
+    let maxN = 0;
+    dates.forEach(function (d) { maxN = Math.max(maxN, (lists[d] || []).length); });
+    if (!maxN) {
+        tbody.innerHTML = '<tr><td colspan="' + (dates.length * 4) + '" class="empty-cell">暂无数据</td></tr>';
+        return;
     }
+    let html = '';
+    for (let r = 0; r < maxN; r++) {
+        html += '<tr>';
+        dates.forEach(function (d, i) {
+            const sep = i > 0 ? ' sep' : '';
+            const it = (lists[d] || [])[r];
+            if (!it) {
+                html += '<td class="num miss' + sep + '">—</td>' +
+                        '<td class="miss"></td><td class="miss"></td><td class="num miss"></td>';
+                return;
+            }
+            const rk = it.rank <= 10 ? 'up-strong' : '';
+            let txt = '—', cls = 'miss';
+            const chg = it.change;
+            if (chg !== null && chg !== undefined && chg !== '') {
+                const v = Number(chg);
+                if (!isNaN(v)) { cls = v >= 0 ? 'up' : 'down'; txt = (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
+            }
+            html += '<td class="num ' + rk + sep + '">' + it.rank + '</td>' +
+                    '<td class="mono">' + escHtml(it.ticker) + '</td>' +
+                    '<td class="name-cell"><a class="stock-name-link" onclick="openStockChart(\'' +
+                    it.ticker + '\',\'' + escHtml(it.name) + '\')">' + escHtml(it.name) + '</a></td>' +
+                    '<td class="num ' + cls + '">' + txt + '</td>';
+        });
+        html += '</tr>';
+    }
+    tbody.innerHTML = html;
 }
 

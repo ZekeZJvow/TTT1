@@ -347,6 +347,10 @@
                     <span class="dim">点击日期可加入 / 取消对照：</span>
                     <span id="multi-date-chips"></span>
                 </div>
+                <div class="sub-tabs" id="multi-view-tabs">
+                    <button class="sub-btn active" data-mv="date" onclick="switchMultiView('date', event)">按日期并列</button>
+                    <button class="sub-btn" data-mv="stock" onclick="switchMultiView('stock', event)">按股票对照</button>
+                </div>
                 <div id="multi-note" class="hot-themes-note"></div>
                 <div class="table-container">
                     <table class="stock-table multi-table">

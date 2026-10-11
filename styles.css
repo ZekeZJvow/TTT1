@@ -1273,4 +1273,8 @@ body {
 .multi-table td.miss { color: #4a4f55; }
 .multi-table tbody tr:hover { background: rgba(255,255,255,.06); }
 .multi-table .empty-cell { text-align: center; color: #7a7a7a; padding: 24px; }
+.multi-table th.sep, .multi-table td.sep { border-left: 2px solid rgba(255,255,255,.16); }
+.multi-table.by-date { min-width: 900px; font-size: .84rem; }
+.multi-table.by-date th, .multi-table.by-date td { padding: 6px 9px; }
+.multi-table.by-date thead tr:first-child th.grp { font-size: .82rem; }
 
