@@ -1264,7 +1264,7 @@ body {
 }
 .multi-table thead tr:nth-child(2) th { font-size: .8rem; color: #a8b0b8; }
 .multi-table td { padding: 8px 10px; }
-.multi-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.multi-table th.num, .multi-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .multi-table td.mono { font-family: ui-monospace, Consolas, monospace; color: #9aa0a6; }
 .multi-table .name-cell { font-weight: 600; }
 .multi-table td.up { color: #e74c3c; }
@@ -1274,7 +1274,7 @@ body {
 .multi-table tbody tr:hover { background: rgba(255,255,255,.06); }
 .multi-table .empty-cell { text-align: center; color: #7a7a7a; padding: 24px; }
 .multi-table th.sep, .multi-table td.sep { border-left: 2px solid rgba(255,255,255,.16); }
-.multi-table.by-date { min-width: 900px; font-size: .84rem; }
+.multi-table.by-date { width: auto; min-width: 0; margin: 0 auto; font-size: .84rem; }   /* 按内容收紧，消除列内大空白 */
 .multi-table.by-date th, .multi-table.by-date td { padding: 6px 9px; }
 .multi-table.by-date thead tr:first-child th.grp { font-size: .82rem; }
 
