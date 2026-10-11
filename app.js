@@ -381,7 +381,7 @@ function renderMinuteChart(data) {
             },
             formatter: function(params) {
                 const price = params.find(p => p.seriesName === '价格');
-                const volume = params.find(p => p.seriesName === '成交量');
+                const volume = params.find(p => p.seriesName === '成交金额');
                 if (price) {
                     const time = price.name;
                     const priceVal = price.data;
@@ -395,8 +395,9 @@ function renderMinuteChart(data) {
                     html += '<div>均价: <span style="color:#f39c12">' + (prices.slice(0, price.dataIndex + 1).reduce((a, b) => a + b, 0) / (price.dataIndex + 1)).toFixed(2) + '</span></div>';
                     html += '<div>昨收: <span style="color:#a0a0a0">' + prevClose.toFixed(2) + '</span></div>';
                     if (volume) {
-                        const vol = volume.data;
-                        html += '<div>成交金额: <span style="color:#fff">' + (vol / 100000000).toFixed(2) + '亿</span></div>';
+                        // 分时 volume 是「累计成交量（手）」-> 成交额 = 手 × 100 × 价格
+                        const amt = volume.data * 100 * priceVal;
+                        html += '<div>成交额: <span style="color:#fff">' + (amt / 100000000).toFixed(2) + '亿</span></div>';
                     }
                     return html;
                 }
@@ -506,7 +507,6 @@ function renderDailyChart(data) {
             },
             formatter: function(params) {
                 const kline = params.find(p => p.seriesName === 'K线');
-                const volume = params.find(p => p.seriesName === '成交量');
                 if (kline) {
                     const data = kline.data;
                     const date = kline.name;
@@ -523,9 +523,11 @@ function renderDailyChart(data) {
                     html += '<div>高: <span style="color:#fff">' + data[4] + '</span></div>';
                     html += '<div>低: <span style="color:#fff">' + data[3] + '</span></div>';
                     html += '<div>涨跌: <span style="color:' + changeColor + '">' + change + '%</span></div>';
-                    if (volume) {
-                        const vol = volume.data;
-                        html += '<div>成交金额: <span style="color:#fff">' + (vol / 100000000).toFixed(2) + '亿</span></div>';
+                    const _dk = (window.__dailyData || [])[klineIndex] || {};
+                    if (_dk.amount != null) {
+                        html += '<div>成交额: <span style="color:#fff">' + (_dk.amount / 100000000).toFixed(2) +
+                                '亿</span>' + (_dk.amount_src === 'est'
+                                    ? '<span style="color:#8a8a8a;font-size:11px"> (估)</span>' : '') + '</div>';
                     }
                     return html;
                 }
@@ -533,7 +535,7 @@ function renderDailyChart(data) {
             }
         },
         legend: {
-            data: ['K线', '成交量'],
+            data: ['K线', '成交金额'],
             textStyle: { color: '#a0a0a0' },
             top: 10
         },

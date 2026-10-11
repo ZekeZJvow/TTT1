@@ -600,6 +600,60 @@ def get_stock_news(code):
             return jsonify({'success': True, 'data': db_news, 'from_db': True})
         return jsonify({'success': False, 'error': str(e)})
 
+def _ths_code(code):
+    """纯数字代码 -> thscode（CLI 用）"""
+    c = str(code or "").strip()
+    if c.startswith("6"):
+        return c + ".SH"
+    if c.startswith(("4", "8", "9")):
+        return c + ".BJ"
+    return c + ".SZ"
+
+
+def _attach_daily_amount(thscode, rows):
+    """给日K每根K线补「成交额」（元）
+
+    本地库与新浪日K都不含成交额，所以返回前补上：
+      · amount_src = 'cli' -> 用 hithink-finance CLI 取的**真实成交额**
+      · amount_src = 'est' -> 估算：成交量 × 均价((高+低+收)/3)（CLI 不可用时兜底）
+    """
+    if not rows:
+        return rows
+    tmap = {}
+    try:
+        import theme_heat_service as _ths
+        d0, d1 = rows[0].get("date"), rows[-1].get("date")
+        if d0 and d1:
+            ms0 = int(datetime.strptime(d0, "%Y-%m-%d").timestamp() * 1000)
+            ms1 = int(datetime.strptime(d1, "%Y-%m-%d").timestamp() * 1000) + 86400000
+            obj = _ths._cached_json(
+                ["market", "history", "--thscode", thscode,
+                 "--start-ms", str(ms0), "--end-ms", str(ms1),
+                 "--adjust", "none", "--format", "json"],
+                6 * 3600, timeout=60)
+            for it in ((obj or {}).get("data") or {}).get("item") or []:
+                ms = it.get("date_ms")
+                tv = it.get("turnover")
+                if ms and tv is not None:
+                    tmap[datetime.fromtimestamp(ms / 1000.0).strftime("%Y-%m-%d")] = float(tv)
+    except Exception:
+        tmap = {}
+    for r in rows:
+        if r.get("amount"):
+            continue
+        v = tmap.get(r.get("date"))
+        if v:
+            r["amount"] = round(v)
+            r["amount_src"] = "cli"
+        else:
+            vol = float(r.get("volume") or 0)
+            h = float(r.get("high") or 0); l = float(r.get("low") or 0); c = float(r.get("close") or 0)
+            avg = (h + l + c) / 3.0 if (h or l or c) else c
+            r["amount"] = round(vol * avg)
+            r["amount_src"] = "est"
+    return rows
+
+
 @app.route('/api/stock/<code>')
 def get_stock_chart(code):
     """获取个股分时或日K数据"""
@@ -678,7 +732,9 @@ def get_stock_chart(code):
             if not _market_is_live():
                 _db_k = _mdb.load_daily_kline(clean_code, limit=60)
                 if len(_db_k) >= 60:
-                    return jsonify({'success': True, 'data': _db_k, 'from_db': True})
+                    return jsonify({'success': True,
+                                    'data': _attach_daily_amount(_ths_code(clean_code), _db_k),
+                                    'from_db': True})
             # 使用新浪K线接口（更稳定）
             url = f"https://quotes.sina.cn/cn/api/jsonp_v2.php/var/CN_MarketDataService.getKLineData?symbol={market_code}&scale=240&ma=no&datalen=60"
             headers = {
@@ -710,7 +766,8 @@ def get_stock_chart(code):
                     _mdb.save_daily_kline(clean_code, result)
                     _mdb.log_fetch('daily_kline', source='sina', trade_date=result[-1].get('date'),
                                    rows=len(result), status='ok')
-                    return jsonify({'success': True, 'data': result})
+                    return jsonify({'success': True,
+                                    'data': _attach_daily_amount(_ths_code(clean_code), result)})
             
             return jsonify({'success': False, 'error': '无日K数据'})
                 
