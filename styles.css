@@ -1273,7 +1273,15 @@ body {
 .multi-table td.miss { color: #4a4f55; }
 .multi-table tbody tr:hover { background: rgba(255,255,255,.06); }
 .multi-table .empty-cell { text-align: center; color: #7a7a7a; padding: 24px; }
-.multi-table th.sep, .multi-table td.sep { border-left: 2px solid rgba(255,255,255,.16); }
+/* ---- 网格线：像普通表格一样，行列都有线 ---- */
+.multi-table thead tr:nth-child(2) th { border-top: 1px solid rgba(255,255,255,.24); }
+.multi-table th, .multi-table td { border: 1px solid rgba(255,255,255,.14); }
+.multi-table.by-date thead tr:first-child th.grp { border-bottom: 1px solid rgba(255,255,255,.18); }
+/* 日期块之间的分隔线更明显，一眼看出「按日期分」 */
+.multi-table th.sep, .multi-table td.sep { border-left: 2px solid rgba(96,165,250,.55); }
+/* 行斑马纹，长表更好读 */
+.multi-table tbody tr:nth-child(even) { background: rgba(255,255,255,.03); }
+.multi-table tbody tr:hover { background: rgba(255,255,255,.08); }
 .multi-table.by-date { width: auto; min-width: 0; margin: 0 auto; font-size: .84rem; }   /* 按内容收紧，消除列内大空白 */
 .multi-table.by-date th, .multi-table.by-date td { padding: 6px 9px; }
 .multi-table.by-date thead tr:first-child th.grp { font-size: .82rem; }
