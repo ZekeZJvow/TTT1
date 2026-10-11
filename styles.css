@@ -1254,3 +1254,23 @@ body {
 }
 #db-cov-table option, #db-coverage-n option { background: #1b2432; color: #e6e8ea; }
 .db-cov-day { cursor: pointer; }
+
+/* ---------- 模块5：题材股多日对照 ---------- */
+.multi-table { font-size: .86rem; }
+.multi-table th, .multi-table td { white-space: nowrap; }
+.multi-table thead tr:first-child th.grp {
+    text-align: center; font-weight: 700; color: #5dade2;
+    background: rgba(52,152,219,.16); border-bottom: 1px solid rgba(255,255,255,.14);
+}
+.multi-table thead tr:nth-child(2) th { font-size: .8rem; color: #a8b0b8; }
+.multi-table td { padding: 8px 10px; }
+.multi-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.multi-table td.mono { font-family: ui-monospace, Consolas, monospace; color: #9aa0a6; }
+.multi-table .name-cell { font-weight: 600; }
+.multi-table td.up { color: #e74c3c; }
+.multi-table td.down { color: #2ecc71; }
+.multi-table td.up-strong { color: #ff5252; font-weight: 700; }
+.multi-table td.miss { color: #4a4f55; }
+.multi-table tbody tr:hover { background: rgba(255,255,255,.06); }
+.multi-table .empty-cell { text-align: center; color: #7a7a7a; padding: 24px; }
+

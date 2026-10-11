@@ -19,6 +19,7 @@
             <button id="mode-hotlist" class="mode-btn active" onclick="switchMode('hotlist', event)">📊 人气榜查询</button>
             <button id="mode-screen" class="mode-btn" onclick="switchMode('screen', event)">🎯 动态选股</button>
             <button id="mode-theme" class="mode-btn" onclick="switchMode('theme', event)">🔥 当前题材热度</button>
+        <button id="mode-multi" class="mode-btn" onclick="switchMode('multi', event)">📅 题材多日对照</button>
             <button id="mode-db" class="mode-btn" onclick="switchMode('db', event)">🗄️ 数据管理</button>
         </nav>
 
@@ -322,6 +323,37 @@
                     </table>
                 </div>
                 <div class="screen-foot" id="theme-foot"></div>
+            </div>
+        </section>
+
+        <!-- ============ 面板五：题材股多日对照 ============ -->
+        <section id="panel-multi" class="panel hidden">
+            <div class="screen-intro">
+                <h2>题材股多日对照 · 按日期并列</h2>
+                <p class="screen-desc">
+                    把「当前题材热度」里每天的<b>利好题材个股 Top50</b> 按交易日<b>并列</b>排开：
+                    同一只股票占一行，每个日期一组「<b>排名 + 涨跌幅</b>」，
+                    一眼看出这只票<b>连续几天在榜</b>、名次和涨跌怎么变。
+                    默认显示最近 3 个交易日，点日期块可增删（最多 6 个）。
+                </p>
+            </div>
+
+            <div class="hot-themes-box">
+                <div class="hot-themes-head">
+                    <h3>📅 选择要对照的交易日</h3>
+                    <button class="mini-btn" onclick="loadMulti(true)">↻ 刷新</button>
+                </div>
+                <div class="theme-date-bar">
+                    <span class="dim">点击日期可加入 / 取消对照：</span>
+                    <span id="multi-date-chips"></span>
+                </div>
+                <div id="multi-note" class="hot-themes-note"></div>
+                <div class="table-container">
+                    <table class="stock-table multi-table">
+                        <thead id="multi-thead"></thead>
+                        <tbody id="multi-body"></tbody>
+                    </table>
+                </div>
             </div>
         </section>
 

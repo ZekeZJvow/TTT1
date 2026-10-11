@@ -1177,6 +1177,83 @@ def _load_backfill_module():
     raise RuntimeError("找不到 backfill_hotlist.py")
 
 
+@app.route("/api/themes/multi")
+def themes_multi_api():
+    """多日对照：把每个交易日的「利好题材个股 Top50」按日期并列输出。
+
+    参数 dates=2026-10-09,2026-10-08（可选，默认最近 3 个有数据的交易日）
+    """
+    dates_arg = (request.args.get("dates") or "").strip()
+    try:
+        limit = int(request.args.get("limit", 50))
+    except Exception:
+        limit = 50
+    limit = max(1, min(limit, 50))
+
+    avail = _mdb.theme_dates(60) or []
+    if not avail:
+        return jsonify({"success": False, "error": "NO_DATA",
+                        "message": "还没有任何已保存的题材数据，请先在「当前题材热度」跑一次"})
+
+    if dates_arg:
+        want = [d.strip() for d in dates_arg.split(",") if d.strip()]
+        dates = [d for d in want if d in set(avail)] or avail[:3]
+    else:
+        dates = avail[:3]
+    dates = sorted(set(dates), reverse=True)[:6]
+
+    rows = {}
+    per_date = {}
+    for d in dates:
+        payload = _mdb.load_event_themes(d) or {}
+        tops = (payload.get("topStocks") or [])[:limit]
+        try:
+            cmap = _mdb.kline_change_map(d)
+        except Exception:
+            cmap = {}
+        n = 0
+        for i, st in enumerate(tops, 1):
+            tk = str(st.get("ticker") or "").strip()
+            if not tk:
+                continue
+            chg = st.get("change")
+            if chg is None:
+                chg = cmap.get(tk)
+            try:
+                chg = None if chg is None else round(float(chg), 2)
+            except (TypeError, ValueError):
+                chg = None
+            item = {"rank": i, "change": chg, "themeHeat": st.get("themeHeat")}
+            name = str(st.get("name") or "")
+            r = rows.get(tk)
+            if r is None:
+                r = {"ticker": tk, "name": name, "by_date": {}}
+                rows[tk] = r
+            elif name and not r.get("name"):
+                r["name"] = name
+            r["by_date"][d] = item
+            n += 1
+        per_date[d] = {"count": n, "as_of": payload.get("as_of")}
+
+    def _sk(r):
+        # 排序：优先「最新日期在榜」的股票（按名次），其次只看第 2 新日期在榜的，依次类推
+        for idx, d in enumerate(dates):
+            it = r["by_date"].get(d)
+            if it and it.get("rank"):
+                return (idx, it["rank"], r["ticker"])
+        return (len(dates), 999, r["ticker"])
+
+    out_rows = sorted(rows.values(), key=_sk)
+    return jsonify({
+        "success": True,
+        "dates": dates,
+        "available": avail[:30],
+        "rows": out_rows,
+        "per_date": per_date,
+        "stockTotal": len(out_rows),
+    })
+
+
 @app.route("/api/themes/dates")
 def themes_dates_api():
     """库里有题材数据的交易日（供题材页点选）"""

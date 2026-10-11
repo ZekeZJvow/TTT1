@@ -711,8 +711,10 @@ function switchMode(mode, event) {
     document.getElementById('panel-screen').classList.toggle('hidden', mode !== 'screen');
     document.getElementById('panel-theme').classList.toggle('hidden', mode !== 'theme');
     document.getElementById('panel-db').classList.toggle('hidden', mode !== 'db');
+    document.getElementById('panel-multi').classList.toggle('hidden', mode !== 'multi');
     if (mode === 'screen') ensureScreenDate();
     if (mode === 'theme') { loadHotThemes(false); loadThemeDates(); }
+    if (mode === 'multi') { loadMulti(false); }
     if (mode === 'db') { loadDbOverview(); loadDbJob(); loadIntegrity(); loadNotifyStatus(); loadExportInfo(); loadDbCoverage(); loadBackfillMissing(); }
 }
 
@@ -2018,3 +2020,118 @@ async function pollBackfill() {
     }
     box.innerHTML = '<span class="dim">回补还在进行，稍后点「检查缺失」查看结果</span>';
 }
+
+// ==================== 模块5：题材股多日对照 ====================
+let multiDates = [];          // 当前选中的日期（降序）
+let multiAvailable = [];      // 可选的日期
+let multiData = null;
+let multiLoaded = false;
+const MULTI_MAX = 6;          // 最多同时对照几个日期
+
+async function loadMulti(force) {
+    const note = document.getElementById('multi-note');
+    if (multiLoaded && !force && multiDates.length) return;
+    const q = multiDates.length ? ('?dates=' + encodeURIComponent(multiDates.join(','))) : '';
+    if (note) note.textContent = '正在读取各交易日的题材数据…';
+    let r;
+    try {
+        r = await (await fetch('/api/themes/multi' + q)).json();
+    } catch (e) {
+        if (note) note.textContent = '加载失败：' + e.message;
+        return;
+    }
+    if (!r || !r.success) {
+        document.getElementById('multi-thead').innerHTML = '';
+        document.getElementById('multi-body').innerHTML =
+            '<tr><td class="empty-cell">' + escHtml((r && (r.message || r.error)) || '暂无数据') + '</td></tr>';
+        document.getElementById('multi-date-chips').innerHTML = '';
+        if (note) note.textContent = '';
+        return;
+    }
+    multiData = r;
+    multiAvailable = r.available || [];
+    multiDates = r.dates || [];
+    multiLoaded = true;
+    renderMulti();
+}
+
+function toggleMultiDate(d) {
+    const i = multiDates.indexOf(d);
+    if (i >= 0) {
+        if (multiDates.length <= 1) { alert('至少保留一个日期'); return; }
+        multiDates.splice(i, 1);
+    } else {
+        if (multiDates.length >= MULTI_MAX) { alert('最多同时对照 ' + MULTI_MAX + ' 个日期'); return; }
+        multiDates.push(d);
+        multiDates.sort(function (x, y) { return x < y ? 1 : -1; });   // 日期新的在前
+    }
+    loadMulti(true);
+}
+
+function renderMulti() {
+    if (!multiData) return;
+    const dates = multiData.dates || [];
+    const rows = multiData.rows || [];
+    const thead = document.getElementById('multi-thead');
+    const tbody = document.getElementById('multi-body');
+    const note = document.getElementById('multi-note');
+
+    let h1 = '<tr><th class="grp" colspan="2">股票</th>';
+    let h2 = '<tr><th>代码</th><th>名称</th>';
+    dates.forEach(function (d) {
+        h1 += '<th class="grp" colspan="2">' + escHtml(d) + '</th>';
+        h2 += '<th class="num">排名</th><th class="num">涨跌幅</th>';
+    });
+    h1 += '</tr>'; h2 += '</tr>';
+    thead.innerHTML = h1 + h2;
+
+    const cols = 2 + dates.length * 2;
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="' + cols + '" class="empty-cell">暂无数据</td></tr>';
+    } else {
+        tbody.innerHTML = rows.map(function (r) {
+            let tds = '<td class="mono">' + escHtml(r.ticker) + '</td>' +
+                '<td class="name-cell"><a class="stock-name-link" onclick="openStockChart(\'' +
+                r.ticker + '\',\'' + escHtml(r.name) + '\')">' + escHtml(r.name) + '</a></td>';
+            dates.forEach(function (d) {
+                const it = (r.by_date || {})[d];
+                if (!it || !it.rank) {
+                    tds += '<td class="num miss">—</td><td class="num miss">—</td>';
+                    return;
+                }
+                const rk = it.rank <= 10 ? 'up-strong' : '';
+                let txt = '—', cls = 'miss';
+                const chg = it.change;
+                if (chg !== null && chg !== undefined && chg !== '') {
+                    const v = Number(chg);
+                    if (!isNaN(v)) {
+                        cls = v >= 0 ? 'up' : 'down';
+                        txt = (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+                    }
+                }
+                tds += '<td class="num ' + rk + '">' + it.rank + '</td>' +
+                       '<td class="num ' + cls + '">' + txt + '</td>';
+            });
+            return '<tr>' + tds + '</tr>';
+        }).join('');
+    }
+
+    const box = document.getElementById('multi-date-chips');
+    box.innerHTML = (multiAvailable || []).map(function (d) {
+        const on = dates.indexOf(d) >= 0 ? ' sel' : '';
+        return '<span class="day-chip has' + on + '" style="cursor:pointer" title="点击' +
+               (on ? '取消' : '加入') + '对照" onclick="toggleMultiDate(\'' + d + '\')">' +
+               escHtml(d) + '</span>';
+    }).join('');
+
+    if (note) {
+        const pd = multiData.per_date || {};
+        const cnt = dates.map(function (d) {
+            return d + '（' + ((pd[d] || {}).count || 0) + ' 只）';
+        }).join('　|　');
+        note.textContent = '对照 ' + dates.length + ' 个交易日：' + cnt +
+            '　|　合并去重后共 ' + rows.length + ' 只股票　|　「—」= 该日不在 Top50' +
+            '（个别股票若本地没有当日行情，涨跌幅也显示「—」）';
+    }
+}
+
