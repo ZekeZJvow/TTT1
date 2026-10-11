@@ -1185,10 +1185,10 @@ def themes_multi_api():
     """
     dates_arg = (request.args.get("dates") or "").strip()
     try:
-        limit = int(request.args.get("limit", 50))
+        limit = int(request.args.get("limit", 20))
     except Exception:
-        limit = 50
-    limit = max(1, min(limit, 50))
+        limit = 20
+    limit = max(1, min(limit, 50))        # 默认只取每天前 20 名
 
     avail = _mdb.theme_dates(60) or []
     if not avail:
@@ -1273,6 +1273,7 @@ def themes_multi_api():
         "success": True,
         "dates": dates,
         "available": avail[:30],
+        "limit": limit,
         "rows": out_rows,
         "by_date_list": by_date_list,
         "per_date": per_date,

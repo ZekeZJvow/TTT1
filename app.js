@@ -2159,9 +2159,11 @@ function renderMultiNote() {
     const cnt = dates.map(function (d) {
         return d + '（' + ((pd[d] || {}).count || 0) + ' 只）';
     }).join('　|　');
+    const lim = multiData.limit || 20;
     const tail = (multiView === 'stock')
-        ? '同一只股票一行，每列是该日的名次与涨跌幅　|　「—」= 该日不在 Top50'
-        : '每个日期各自一块「排名 | 代码 | 名称 | 涨跌幅」，横向并排　|　「—」= 该日不足 50 只';
+        ? '同一只股票一行，每列是该日的名次与涨跌幅　|　「—」= 该日不在前 ' + lim + ' 名'
+        : '每个日期各自一块「排名 | 代码 | 名称 | 涨跌幅」（各取前 ' + lim +
+          ' 名），横向并排　|　「—」= 该日不足 ' + lim + ' 只';
     note.textContent = '对照 ' + dates.length + ' 个交易日：' + cnt + '　|　' + tail +
         '（个别股票若本地没有当日行情，涨跌幅显示「—」）';
 }
