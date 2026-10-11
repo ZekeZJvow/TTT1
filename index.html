@@ -52,15 +52,11 @@
                 <div id="hotlist-range-summary" class="range-summary hidden"></div>
                 <div id="hotlist-day-chips" class="day-chips hidden"></div>
                 <div class="query-btn-row">
-                    <button id="query-btn" class="query-btn" onclick="fetchData()">
-                        <span class="btn-text">🔍 查询人气榜</span>
+                    <button id="query-btn" class="query-btn"
+                            title="未选日期＝按此刻实时查询（并归档到本日，含周末/节假日）；选了日期＝回看该交易日存档"
+                            onclick="fetchData()">
+                        <span class="btn-text">🔍 查询人气榜（未选日期＝实时）</span>
                         <span class="btn-loading hidden">⏳ 查询中...</span>
-                    </button>
-                    <button id="query-live-btn" class="query-btn live-btn"
-                            title="按此刻的实时人气榜 + 最新热门话题重新查询（不入库、不覆盖历史存档）"
-                            onclick="fetchData(null, true)">
-                        <span class="btn-text">⚡ 看最新（实时）</span>
-                        <span class="btn-loading hidden">⏳ 采集中...</span>
                     </button>
                 </div>
             </div>

@@ -549,16 +549,34 @@ def get_hotlist():
     }
 
     if _force_live:
-        # 实时模式：附带「此刻热门话题」当最新消息；**不落库**，历史存档不受影响
+        # 实时模式：附带「此刻热门话题」当最新消息
+        # 落库到**真实自然日**（非交易日也归档，方便以后回看周末/节假日的人气榜）
+        # —— 绝不写历史日期，因此历史存档仍然安全
+        _today = datetime.now().strftime('%Y-%m-%d')
         response_data['live_rebuild'] = True
-        response_data['message'] = '⚡ 实时数据（此刻，未入库）'
-        response_data['trading_day'] = _save_date
+        response_data['trading_day'] = _today
+        _is_td = _today in set(_trading_calendar(60))
+        _wd = datetime.now().isoweekday()
+        if _is_td:
+            _msg = '⚡ 实时（此刻）'
+        elif _wd >= 6:
+            _msg = '⚡ 实时（此刻）· 周末人气榜仍在更新，已按本日归档'
+        else:
+            _msg = '⚡ 实时（此刻）· 已按本日归档'
+        response_data['message'] = _msg
         try:
             import event_theme_service as _ets
             _tp = _ets._fetch_topics()[:8]
             response_data['topics'] = [{'title': t['title'], 'hot': t['hot']} for t in _tp]
         except Exception:
             response_data['topics'] = []
+        try:
+            _mdb.save_hotlist(_today, result_list, source=source, degraded=degraded,
+                              captured_at=collection_time)
+            _mdb.log_fetch('hotlist', source=source, trade_date=_today,
+                           rows=len(result_list), status='degraded' if degraded else 'ok')
+        except Exception:
+            pass
         return jsonify(response_data)
 
     set_cached_data(cache_key, response_data)

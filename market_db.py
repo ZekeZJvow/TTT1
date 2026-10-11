@@ -2109,7 +2109,17 @@ def hotlist_range_status(start, end, max_days=130):
             "SELECT `trade_date` FROM `trade_calendar` WHERE `is_open`=1 "
             "AND `trade_date`>=? AND `trade_date`<=? ORDER BY `trade_date` LIMIT ?",
             (start, end, int(max_days))).fetchall()
-        return [r["trade_date"] for r in rows]
+        cal = [r["trade_date"] for r in rows]
+        # 人气榜每天都在更新（周末/节假日也有）-> 把「实际有数据的日期」一并纳入，
+        # 否则非交易日的快照永远不会出现在日期块里
+        try:
+            got = [r["trade_date"] for r in conn.execute(
+                "SELECT DISTINCT `trade_date` FROM `hotlist_snapshot` "
+                "WHERE `trade_date`>=? AND `trade_date`<=? ORDER BY `trade_date`",
+                (start, end)).fetchall()]
+        except Exception:
+            got = []
+        return sorted(set(cal) | set(got))[:int(max_days)]
     days = _read(_cal, []) or []
 
     out = []

@@ -14,8 +14,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ==================== 数据获取 ====================
-async function fetchData(dateOpt, liveNow) {
-    const btn = document.getElementById(liveNow ? 'query-live-btn' : 'query-btn');
+async function fetchData(dateOpt) {
+    const btn = document.getElementById('query-btn');
     const btnText = btn.querySelector('.btn-text');
     const btnLoading = btn.querySelector('.btn-loading');
     
@@ -30,8 +30,9 @@ async function fetchData(dateOpt, liveNow) {
     const _d = (typeof dateOpt === 'string') ? dateOpt : hotlistSelectedDate;
 
     try {
+        // 没选日期 -> 取「此刻实时」（并归档到本日，含周末/节假日）；选了日期 -> 读该日存档
         const response = await fetch('/api/hotlist' +
-            (_d ? '?date=' + encodeURIComponent(_d) : (liveNow ? '?live=1' : '')));
+            (_d ? '?date=' + encodeURIComponent(_d) : '?live=1'));
         const result = await response.json();
 
         if (result.success) {
