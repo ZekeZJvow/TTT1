@@ -51,12 +51,21 @@
                 </div>
                 <div id="hotlist-range-summary" class="range-summary hidden"></div>
                 <div id="hotlist-day-chips" class="day-chips hidden"></div>
-                <button id="query-btn" class="query-btn" onclick="fetchData()">
-                    <span class="btn-text">🔍 查询人气榜</span>
-                    <span class="btn-loading hidden">⏳ 查询中...</span>
-                </button>
+                <div class="query-btn-row">
+                    <button id="query-btn" class="query-btn" onclick="fetchData()">
+                        <span class="btn-text">🔍 查询人气榜</span>
+                        <span class="btn-loading hidden">⏳ 查询中...</span>
+                    </button>
+                    <button id="query-live-btn" class="query-btn live-btn"
+                            title="按此刻的实时人气榜 + 最新热门话题重新查询（不入库、不覆盖历史存档）"
+                            onclick="fetchData(null, true)">
+                        <span class="btn-text">⚡ 看最新（实时）</span>
+                        <span class="btn-loading hidden">⏳ 采集中...</span>
+                    </button>
+                </div>
             </div>
 
+            <div id="hotlist-topics" class="hot-topics hidden"></div>
             <div id="empty-history" class="empty-history hidden"></div>
 
             <div id="filter-section" class="filter-section hidden">
@@ -235,8 +244,7 @@
             <div class="hot-themes-box">
                 <div class="hot-themes-head">
                     <h3>📰 当日事件驱动题材 · 自动发现</h3>
-                    <button class="mini-btn" title="按此刻的实时事件重新构建（不入库、不覆盖历史存档）" onclick="clearThemeDate()">⚡ 看最新（实时）</button>
-                    <button id="theme-refresh" class="mini-btn" title="按此刻的实时事件重新构建（不入库）" onclick="loadHotThemes(true, true)">↻ 重新扫描（实时）</button>
+                    <button id="theme-refresh" class="mini-btn" title="清空所选日期、按此刻的实时事件重新构建（不入库）" onclick="clearThemeDate()">↻ 重新扫描（实时）</button>
                 </div>
                 <div class="theme-date-bar">
                     <span class="dim">查看日期（库中已有题材数据的交易日，点一下即可）：</span>

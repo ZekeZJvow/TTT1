@@ -14,8 +14,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ==================== 数据获取 ====================
-async function fetchData(dateOpt) {
-    const btn = document.getElementById('query-btn');
+async function fetchData(dateOpt, liveNow) {
+    const btn = document.getElementById(liveNow ? 'query-live-btn' : 'query-btn');
     const btnText = btn.querySelector('.btn-text');
     const btnLoading = btn.querySelector('.btn-loading');
     
@@ -30,7 +30,8 @@ async function fetchData(dateOpt) {
     const _d = (typeof dateOpt === 'string') ? dateOpt : hotlistSelectedDate;
 
     try {
-        const response = await fetch('/api/hotlist' + (_d ? '?date=' + encodeURIComponent(_d) : ''));
+        const response = await fetch('/api/hotlist' +
+            (_d ? '?date=' + encodeURIComponent(_d) : (liveNow ? '?live=1' : '')));
         const result = await response.json();
 
         if (result.success) {
@@ -78,6 +79,20 @@ function displayData(result) {
     renderTable(filteredData);
     displaySummary(result.summary);
     displayFooter(result.source, result.collection_time);
+    displayHotTopics(result.topics, result.live_rebuild);
+}
+
+// 「此刻热门话题」条（实时模式才有）
+function displayHotTopics(topics, live) {
+    const box = document.getElementById('hotlist-topics');
+    if (!box) return;
+    if (!topics || !topics.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    box.innerHTML = '<span class="ht-label">⚡ 此刻热门话题</span>' +
+        topics.map(function (t) {
+            return '<span class="ht-item">' + escHtml(t.title) +
+                   '<em>' + (Number(t.hot || 0) / 10000).toFixed(1) + '万</em></span>';
+        }).join('');
+    box.classList.remove('hidden');
 }
 
 // ==================== 交易日显示 ====================

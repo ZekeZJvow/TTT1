@@ -464,6 +464,8 @@ def index():
 def get_hotlist():
     trading_day, message = get_data_trading_day()
     user_date = (request.args.get('date') or '').strip()
+    # live=1：显式要求「此刻实时」-> 跳过读库/缓存，且不落库（前端「⚡ 看最新（实时）」用）
+    _force_live = (request.args.get('live') or '').strip().lower() in ('1', 'true', 'yes', 'now')
 
     # ---- ① 明确指定了日期：只读本地库；读不到就如实告知，绝不回退成实时数据 ----
     if user_date:
@@ -493,7 +495,7 @@ def get_hotlist():
     # 重要：**盘中也要优先读库**。因为数据源只给"此刻"的实时榜，若盘中抓取
     # 并归到上一交易日，就会把上一交易日的收盘快照污染掉（改不回来）。
     # 本应用的定位本来就是"收盘后数据"，盘中显示上一交易日收盘快照是正确的。
-    if True:
+    if not _force_live:
         db_hot = _mdb.load_hotlist(trading_day)
         if db_hot and db_hot.get('data'):
             return jsonify({
@@ -509,9 +511,10 @@ def get_hotlist():
             })
 
     cache_key = get_cache_key('hotlist')
-    cached = get_cached_data(cache_key)
-    if cached:
-        return jsonify(cached)
+    if not _force_live:
+        cached = get_cached_data(cache_key)
+        if cached:
+            return jsonify(cached)
 
     # 实时抓取（同花顺优先，失败降级东方财富）
     result_list, source, degraded, _err = build_hotlist_live()
@@ -544,7 +547,20 @@ def get_hotlist():
             'hot_proportion': summary_hot
         }
     }
-    
+
+    if _force_live:
+        # 实时模式：附带「此刻热门话题」当最新消息；**不落库**，历史存档不受影响
+        response_data['live_rebuild'] = True
+        response_data['message'] = '⚡ 实时数据（此刻，未入库）'
+        response_data['trading_day'] = _save_date
+        try:
+            import event_theme_service as _ets
+            _tp = _ets._fetch_topics()[:8]
+            response_data['topics'] = [{'title': t['title'], 'hot': t['hot']} for t in _tp]
+        except Exception:
+            response_data['topics'] = []
+        return jsonify(response_data)
+
     set_cached_data(cache_key, response_data)
     _mdb.save_hotlist(_save_date, result_list, source=source, degraded=degraded,
                       captured_at=collection_time)

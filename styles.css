@@ -1286,4 +1286,21 @@ body {
 .multi-table.by-date { width: auto; min-width: 0; margin: 0 auto; font-size: .84rem; }   /* 按内容收紧，消除列内大空白 */
 .multi-table.by-date th, .multi-table.by-date td { padding: 6px 9px; }
 .multi-table.by-date thead tr:first-child th.grp { font-size: .82rem; }
+/* ---------- 人气榜：查询按钮行 + 实时按钮 + 此刻热门话题条 ---------- */
+.query-btn-row { display: flex; gap: 14px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.query-btn.live-btn {
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+    box-shadow: 0 4px 15px rgba(243, 156, 18, 0.35);
+}
+.query-btn.live-btn:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(243, 156, 18, 0.55); }
+.hot-topics {
+    display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+    padding: 12px 16px; margin-bottom: 16px; border-radius: 10px;
+    background: rgba(243, 156, 18, 0.12);
+    border: 1px solid rgba(243, 156, 18, 0.35);
+    font-size: .85rem;
+}
+.hot-topics .ht-label { color: #f5b041; font-weight: 700; margin-right: 4px; }
+.hot-topics .ht-item { color: #d8dde3; }
+.hot-topics .ht-item em { color: #f39c12; font-style: normal; margin-left: 5px; font-size: .78rem; }
 
