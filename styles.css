@@ -218,13 +218,14 @@ body {
     text-align: left;
     font-weight: 600;
     color: #fff;
-    border-bottom: 2px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-bottom: 2px solid rgba(255,255,255,0.24);
     white-space: nowrap;
 }
 
 .stock-table td {
     padding: 12px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.10);
     transition: background 0.2s ease;
 }
 
