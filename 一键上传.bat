@@ -49,14 +49,11 @@ goto conn_ok
 echo [2/4] 收集本次改动 ...
 git add -A
 git diff --cached --quiet
-if not errorlevel 1 (
-    echo.
-    echo [完成] 没有需要上传的改动，已经在最新状态。
-    echo.
-    pause
-    exit /b 0
-)
+if errorlevel 1 goto do_commit
+echo       没有新的改动需要提交。
+goto do_push
 
+:do_commit
 echo [3/4] 提交 ...
 set "MSG=%~1"
 if "%MSG%"=="" set "MSG=更新 %date% %time%"
@@ -70,7 +67,9 @@ if errorlevel 1 (
 )
 echo       本次说明：%MSG%
 
-echo [4/4] 上传中 ...
+:do_push
+echo [4/4] 同步到 GitHub ...
+echo       （若之前有提交还没推送，这一步会一并推上去）
 git %GITP% push
 if errorlevel 1 (
     echo.
@@ -82,7 +81,7 @@ if errorlevel 1 (
 
 echo.
 echo ============================================================
-echo    [完成] 已成功上传到 GitHub
+echo    [完成] 本地与 GitHub 已同步
 echo    打开看看： https://github.com/ZekeZJvow/TTT1
 echo ============================================================
 echo.
