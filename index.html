@@ -20,7 +20,8 @@
             <button id="mode-screen" class="mode-btn" onclick="switchMode('screen', event)">🎯 动态选股</button>
             <button id="mode-theme" class="mode-btn" onclick="switchMode('theme', event)">🔥 当前题材热度</button>
         <button id="mode-multi" class="mode-btn" onclick="switchMode('multi', event)">📅 题材多日对照</button>
-            <button id="mode-db" class="mode-btn" onclick="switchMode('db', event)">🗄️ 数据管理</button>
+            <!-- 数据管理模块：按需求暂时关闭（不在页面显示）。要恢复：删掉下面这行的 style="display:none" -->
+        <button id="mode-db" class="mode-btn" style="display:none" onclick="switchMode('db', event)">🗄️ 数据管理</button>
         </nav>
 
         <!-- ============ 面板一：人气榜 ============ -->
@@ -361,8 +362,8 @@
             </div>
         </section>
 
-        <!-- ============ 面板四：数据管理 ============ -->
-        <section id="panel-db" class="panel hidden">
+        <!-- ============ 面板四：数据管理（已关闭：不在页面显示；要恢复删掉 panel-db 上的 style） ============ -->
+        <section id="panel-db" class="panel hidden" style="display:none">
             <h2>🗄️ 数据管理</h2>
             <p class="screen-desc">
                 查看本地数据仓库中已保存的数据（哪些交易日、多少条），并可一键清理。
