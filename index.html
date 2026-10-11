@@ -228,14 +228,15 @@
                     事件文本匹配同花顺指数目录归类为<b>题材</b>，再用<b>关键词词典 + 涨跌方向</b>判定利好/利空。
                     题材热度 = <b>话题热度(万) + Σ(31 − 人气榜排名)</b>，据此排序并只保留<b>利好题材</b>；
                     每个题材取人气靠前的 20 只成分股，合并去重后<b>按人气排名输出前 50 只</b>。
-                    无需手动输入，打开即自动完成。
+                    无需手动输入，打开即自动完成。<br>
+                    <b>默认显示「最近交易日的本地存档」</b>（快、可回看）；点 <b>⚡ 看最新（实时）</b> 会按<b>此刻</b>的实时事件重新构建 —— <b>不入库</b>，不会覆盖历史存档；未收盘时也适用。
                 </p>
             </div>
             <div class="hot-themes-box">
                 <div class="hot-themes-head">
                     <h3>📰 当日事件驱动题材 · 自动发现</h3>
-                    <button class="mini-btn" onclick="clearThemeDate()">看最新</button>
-                    <button id="theme-refresh" class="mini-btn" onclick="loadHotThemes(true)">↻ 重新扫描</button>
+                    <button class="mini-btn" title="按此刻的实时事件重新构建（不入库、不覆盖历史存档）" onclick="clearThemeDate()">⚡ 看最新（实时）</button>
+                    <button id="theme-refresh" class="mini-btn" title="按此刻的实时事件重新构建（不入库）" onclick="loadHotThemes(true, true)">↻ 重新扫描（实时）</button>
                 </div>
                 <div class="theme-date-bar">
                     <span class="dim">查看日期（库中已有题材数据的交易日，点一下即可）：</span>

@@ -1049,7 +1049,7 @@ function showThemeError(msg) {
 let hotThemesLoaded = false;
 let themeAutoRan = false;
 
-async function loadHotThemes(force) {
+async function loadHotThemes(force, liveNow) {
     if (hotThemesLoaded && !force) return;
     const box = document.getElementById('hot-themes');
     const note = document.getElementById('hot-themes-note');
@@ -1062,6 +1062,7 @@ async function loadHotThemes(force) {
     let r = null;
     let _turl = '/api/event-themes?limit=6&stocks=20';
     if (themeSelectedDate) _turl += '&date=' + encodeURIComponent(themeSelectedDate);
+    else if (liveNow) _turl += '&live=1';        // 「看最新 / 重新扫描」= 此刻实时，不走本地存档
     try {
         r = await (await fetch(_turl)).json();
     } catch (e) {
@@ -1111,8 +1112,8 @@ async function loadHotThemes(force) {
 
     if (note) {
         const _dlab = (r.from_db && r.trade_date)
-            ? ('回看交易日 ' + r.trade_date)
-            : ('数据 ' + (r.as_of || ''));
+            ? ('回看交易日 ' + r.trade_date + '（本地存档）')
+            : ((r.live_rebuild ? '⚡ 实时（此刻 ' : '数据 ') + (r.as_of || '') + ')');
         note.textContent = _dlab +
             '　|　事件源：热门话题 ' + ((r.sources && r.sources.topics) || 0) + ' 条 + 人气榜 ' +
             r.sources.hotlist + ' 只 + 异动 ' + r.sources.anomaly + ' 只' +
@@ -1875,7 +1876,7 @@ let themeSelectedDate = '';
 function clearThemeDate() {
     themeSelectedDate = '';
     hotThemesLoaded = false;
-    loadHotThemes(true);
+    loadHotThemes(true, true);      // 「看最新」= 此刻实时（不走存档）
     loadThemeDates();
 }
 

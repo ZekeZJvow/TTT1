@@ -946,11 +946,13 @@ def event_themes_api():
 
     live = _market_is_live()
     _sess = _session_date()
+    # live=1：显式要求「此刻实时」-> 跳过读库，直接实时构建（前端「看最新 / 重新扫描」用）
+    _force_live = (request.args.get("live") or "").strip().lower() in ("1", "true", "yes", "now")
 
     # ---- ② 非交易时段/非交易日：读库优先（不受 limit/stocks 影响），且绝不用实时重建覆盖存档 ----
     #     重要：数据源只给"此刻"的题材/事件；若在非交易时段重建并归到「上一交易日」，
     #     会把该交易日的收盘存档污染掉（不可恢复）。所以非交易时段**只读不写**。
-    if not live:
+    if (not live) and (not _force_live):
         _db_theme = _mdb.load_event_themes(_sess)
         if _db_theme and _db_theme.get("success"):
             _db_theme["from_db"] = True
@@ -967,6 +969,7 @@ def event_themes_api():
             if _sess == datetime.now().strftime("%Y-%m-%d"):
                 _mdb.save_event_themes(res, trade_date=_sess)
             attach_streaks(res.get("topStocks") or [], _sess, code_key="ticker")
+            res["live_rebuild"] = True          # 本次是「此刻实时」构建（非读存档）
         return jsonify(res)
     except Exception as e:
         return jsonify({"success": False, "error": "event themes failed: %s" % e}), 500
