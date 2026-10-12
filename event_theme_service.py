@@ -511,6 +511,16 @@ def _build_uncached(limit: int, stock_limit: int, min_heat: int) -> Dict[str, An
             v = _num_or_none((_snap.get(x.get("thscode")) or {}).get("price_change_ratio_pct"))
         x["change"] = v
 
+    # ⑧ 补「市场标签」：同花顺实时给个股打的概念标签（比"被哪个题材成分股捎进来"更贴切）
+    #    themes 仍保留为该股的来源题材（用于题材标签筛选），market_tags 只用于展示
+    _ev_by_code = {}
+    for _e in event_list:
+        if _e.get("thscode"):
+            _ev_by_code.setdefault(_e["thscode"], _e)
+    for x in top_stocks:
+        _ev = _ev_by_code.get(x.get("thscode")) or {}
+        x["market_tags"] = [str(t).strip() for t in (_ev.get("concepts") or []) if str(t).strip()]
+
     for th in rows:
         th.pop("members", None)
 

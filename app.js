@@ -1248,7 +1248,13 @@ function renderTopStocksTable() {
                 '<td class="mono">' + escHtml(s.ticker) + '</td>' +
                 '<td class="name-cell"><a class="stock-name-link" onclick="openStockChart(\'' + s.ticker + '\',\'' + escHtml(s.name) + '\')">' + escHtml(s.name) + '</a></td>' +
                 '<td class="num ' + chgCls + '">' + chgText + '</td>' +
-                '<td class="dim">' + escHtml((s.themes || []).join('、')) + '</td>' +
+                (function () {
+                    var mt = (s.market_tags && s.market_tags.length) ? s.market_tags : null;
+                    var src = (s.themes || []).join('、');
+                    var show = mt ? mt.join('、') : src;
+                    var tip = mt ? ('市场标签（同花顺）：' + mt.join('、') + '　|　来源题材：' + src) : ('来源题材：' + src);
+                    return '<td class="dim" title="' + escAttr(tip) + '">' + escHtml(show) + '</td>';
+                })() +
                 '<td class="' + cls + '">' + hk + '</td>' +
                 '<td class="num">' + streakTagHtml(s.streak_days) + '</td>' +
                 '<td class="num dim">' + (s.themeHeat || 0).toFixed(1) + '</td>' +

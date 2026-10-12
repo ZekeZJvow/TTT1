@@ -931,6 +931,42 @@ def screen_sync():
     return jsonify(res)
 
 
+def _attach_market_tags(res, trade_date):
+    """给 Top50 补「市场标签」—— 同花顺给个股打的概念标签（从该日人气榜快照里取）
+
+    人气榜快照里存了每只股票的 `concept_tag`（如 金健米业 -> "玉米, 粮食概念"），
+    比「被哪个题材的成分股名单捎进来」贴切得多。历史日期也能补。
+    """
+    rows = (res or {}).get("topStocks") or []
+    if not rows or not trade_date:
+        return res
+    try:
+        h = _mdb.load_hotlist(trade_date) or {}
+        items = h.get("data") or []
+    except Exception:
+        items = []
+    if not items:
+        return res
+    tag_by_code = {}
+    for it in items:
+        code = str(it.get("code") or "").strip()
+        raw = it.get("concept_tag")
+        if not code or not raw:
+            continue
+        if isinstance(raw, str):
+            parts = [x.strip() for x in raw.replace("，", ",").split(",") if x.strip()]
+        else:
+            parts = [str(x).strip() for x in raw if str(x).strip()]
+        if parts:
+            tag_by_code[code] = parts
+    for r in rows:
+        if not r.get("market_tags"):
+            v = tag_by_code.get(str(r.get("ticker") or ""))
+            if v:
+                r["market_tags"] = v
+    return res
+
+
 def _fill_theme_change(res, trade_date):
     """给题材 Top50 补「涨跌幅」：本地库回放时用日K，实时构建时数据已自带"""
     rows = (res or {}).get("topStocks") or []
@@ -971,6 +1007,7 @@ def event_themes_api():
             db_res["from_db"] = True
             db_res["trade_date"] = req_date
             _fill_theme_change(db_res, req_date)
+            _attach_market_tags(db_res, req_date)
             attach_streaks(db_res.get("topStocks") or [], req_date, code_key="ticker")
             return jsonify(db_res)
         # 用 200 + 明确错误码，避免浏览器控制台出现无意义的 404
@@ -992,6 +1029,7 @@ def event_themes_api():
             _db_theme["from_db"] = True
             _db_theme["trade_date"] = _sess
             _fill_theme_change(_db_theme, _sess)
+            _attach_market_tags(_db_theme, _sess)
             attach_streaks(_db_theme.get("topStocks") or [], _sess, code_key="ticker")
             return jsonify(_db_theme)
     try:
