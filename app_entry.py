@@ -50,9 +50,31 @@ server.app.static_folder = RES_DIR
 server.app.template_folder = RES_DIR
 
 PORT = int(os.environ.get("PORT", "5000"))
+# 监听地址：0.0.0.0 = 同一 WiFi 下的手机也能访问（默认）
+# 想恢复“只有本机能访问”，设置环境变量 HOST=127.0.0.1 即可
+HOST = os.environ.get("HOST", "0.0.0.0")
 
 # 开机自启时不想每次弹浏览器：--no-browser 或 APP_NO_BROWSER=1
 NO_BROWSER = ("--no-browser" in sys.argv) or (os.environ.get("APP_NO_BROWSER") == "1")
+
+
+def _lan_urls():
+    """列出本机在局域网里的访问地址，方便手机输入。"""
+    urls = []
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))   # 不发包，只用来挑出默认出口网卡的地址
+            ip = s.getsockname()[0]
+        finally:
+            s.close()
+        urls.append("http://%s:%d" % (ip, PORT))
+    except Exception:
+        pass
+    if HOST not in ("0.0.0.0", "", "*"):
+        urls.insert(0, "http://%s:%d" % (HOST, PORT))
+    return urls
 
 
 def _open_browser():
@@ -98,6 +120,11 @@ def main():
     print("   A股人气雷达")
     print("")
     print("   访问地址 : http://localhost:%d" % PORT)
+    if HOST == "0.0.0.0":
+        for _u in _lan_urls():
+            print("   手机访问 : %s   （手机需连同一个 WiFi）" % _u)
+    else:
+        print("   监听地址 : %s（仅本机可访问）" % HOST)
     if NO_BROWSER:
         print("   运行方式 : 后台静默（不显示窗口）")
         print("   停止服务 : 运行「停止后台运行.bat」，或任务管理器结束本进程")
@@ -124,7 +151,7 @@ def main():
     threading.Thread(target=_open_browser, daemon=True).start()
 
     try:
-        server.app.run(host="127.0.0.1", port=PORT,
+        server.app.run(host=HOST, port=PORT,
                        debug=False, use_reloader=False, threaded=True)
     except OSError as e:
         # 如果端口上已经是"本程序"，说明重复启动了 —— 直接开浏览器然后退出
