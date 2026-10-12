@@ -1,12 +1,10 @@
 Option Explicit
-Dim fso, sh, base, pythonw, servePy, i
+Dim fso, sh, base, i
 
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set sh  = CreateObject("WScript.Shell")
 
-base    = fso.GetParentFolderName(WScript.ScriptFullName)
-pythonw = base & "\venv\Scripts\pythonw.exe"
-servePy = base & "\serve.py"
+base = fso.GetParentFolderName(WScript.ScriptFullName)
 
 Function ServerUp()
     Dim http
@@ -23,15 +21,13 @@ Function ServerUp()
     On Error GoTo 0
 End Function
 
-If Not fso.FileExists(pythonw) Then
-    MsgBox "Missing: " & pythonw, 16, "A-Share Radar"
-    WScript.Quit 1
-End If
-
+' Launch the packaged exe through run_hidden.vbs (it locates *.exe under tools\..\dist).
+' This keeps both scheduled tasks on the SAME program and the SAME database,
+' and avoids serving half-edited source files from source mode.
 If Not ServerUp() Then
     sh.CurrentDirectory = base
-    sh.Run """" & pythonw & """ """ & servePy & """", 0, False
-    For i = 1 To 45
+    sh.Run "wscript.exe """ & base & "\tools\run_hidden.vbs""", 0, False
+    For i = 1 To 90
         WScript.Sleep 1000
         If ServerUp() Then Exit For
     Next
