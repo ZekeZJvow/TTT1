@@ -405,6 +405,31 @@ def _build_uncached(limit: int, stock_limit: int, min_heat: int) -> Dict[str, An
     bulls = [r for r in rows if r["verdict"] == "利好" and r["heatScore"] >= min_heat]
     picks = bulls[:limit]
 
+    # ---- 保底机制：人气榜前 3 名的股票，其「自身概念标签」对应的题材强制入选 ----
+    #   理由：人气榜前几名是市场关注度最高的票，它们身上挂的标签才是当下最贴切的题材，
+    #   但这些标签往往只有 1~2 只人气股支撑、热度低，按热度排永远进不了前 N。
+    _by_name = {}
+    for _th in themes.values():
+        _by_name.setdefault(_th.get("name"), _th)          # 概念标签与指数目录同名，可直接查
+    _forced_names = []
+    try:
+        _top3 = sorted([e for e in event_list
+                        if e.get("source") == "人气榜" and e.get("rank")],
+                       key=lambda e: e["rank"])[:3]
+        for _ev in _top3:
+            for _tag in (_ev.get("concepts") or []):
+                _th = _by_name.get(str(_tag).strip())
+                if _th is None:
+                    continue
+                if any(x is _th for x in picks):
+                    continue
+                _th["forced"] = True
+                _th["forced_by"] = "%s(人气榜第%s名)" % (_ev.get("name") or "", _ev.get("rank"))
+                picks.append(_th)
+                _forced_names.append(_th.get("name"))
+    except Exception:
+        pass
+
     # ④⑤ 取利好题材成分股 + 人气排序
     hot_rank = {s["thscode"]: s["rank"] for s in hot if s.get("rank")}
     pos_rank: Dict[str, int] = {}
@@ -538,6 +563,7 @@ def _build_uncached(limit: int, stock_limit: int, min_heat: int) -> Dict[str, An
         "topStocks": top_stocks,
         "stockTotal": len(merged),
         "stockRanked": len([x for x in top_stocks if x.get("hotRank") or x.get("trendRank")]),
+        "forcedThemes": _forced_names,
         "allThemes": rows[:20],
         "method": "同花顺热门话题(hot_value) + 人气榜异动解读 + 个股异动原因 → 匹配指数目录归类题材 → 关键词词典+涨跌方向判定利好利空 → 利好题材取成分股 → 按人气排名排序；热度 = 话题热度(万) + Σ(31-人气榜排名)",
         "caveat": "事件源仅覆盖当日（热门话题15条 + 人气榜Top30 + 异动榜），且利好利空为关键词规则判定，非语义模型，可能漏判新说法。",

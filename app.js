@@ -1116,10 +1116,13 @@ async function loadHotThemes(force, liveNow) {
     box.innerHTML = (r.rows || []).map(function (t, i) {
         const cls = t.netScore >= 0 ? 'up' : 'down';
         const th = (t.topicHeat && t.topicHeat > 0) ? ('话题' + t.topicHeat.toFixed(1) + '万') : '无话题';
+        var _ttl = ((t.topics || []).map(function (x) { return x.title; }).join('\n') || '无关联话题');
+        if (t.forced) { _ttl = '⚡ 保底入选：' + (t.forced_by || '') + '\n' + _ttl; }
         return '<button class="theme-chip" onclick="filterTopByTheme(\'' + t.name.replace(/'/g, "\\'") + '\',this)" title="' +
-               ((t.topics || []).map(function (x) { return x.title; }).join('\n') || '无关联话题') + '">' +
+               _ttl + '">' +
                '<span class="chip-name">' + (i + 1) + '. ' + escHtml(t.name) + '</span>' +
-               '<span class="chip-d1 ' + cls + '">利好 +' + t.netScore + '</span>' +
+               '<span class="chip-d1 ' + cls + '">' + (t.verdict || '利好') + ' ' +
+                   (t.netScore >= 0 ? '+' : '') + t.netScore + '</span>' +
                '<span class="chip-d5">' + th + ' · ' + t.stockCount + '只人气股</span></button>';
     }).join('');
 
@@ -1182,7 +1185,8 @@ function renderThemeReasons(r) {
         return '<div class="reason-card">' +
             '<div class="reason-head">' +
               '<span class="reason-name">' + (i + 1) + '. ' + escHtml(t.name) + '</span>' +
-              '<span class="reason-verdict">利好 +' + t.netScore + '</span>' +
+              '<span class="reason-verdict">' + (t.verdict || '利好') + ' ' +
+                (t.netScore >= 0 ? '+' : '') + t.netScore + '</span>' +
               '<span class="reason-heat">热度 ' + t.heatScore + '</span>' +
             '</div>' +
             '<div class="reason-body">' + ev + sr + '</div>' +
