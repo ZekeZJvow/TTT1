@@ -1294,9 +1294,9 @@ def themes_multi_api():
 
     if dates_arg:
         want = [d.strip() for d in dates_arg.split(",") if d.strip()]
-        dates = [d for d in want if d in set(avail)] or avail[:3]
+        dates = [d for d in want if d in set(avail)] or avail[:4]
     else:
-        dates = avail[:3]
+        dates = avail[:4]
     dates = sorted(set(dates), reverse=True)[:6]
 
     rows = {}
