@@ -1000,8 +1000,11 @@ def event_themes_api():
             # 只有「场次日期就是今天」才落库：
             #   · 交易日（盘中 / 盘后）-> _sess == 今天 -> 正常存档
             #   · 周末 / 节假日        -> _sess == 上一交易日 -> 不写，避免覆盖历史存档
-            if _sess == datetime.now().strftime("%Y-%m-%d"):
-                _mdb.save_event_themes(res, trade_date=_sess)
+            _nat = datetime.now().strftime("%Y-%m-%d")
+            if _sess == _nat or _force_live:
+                # 归到「真实自然日」：非交易日（周末/节假日）的关注度数据也归档；
+                # 绝不写历史日期，所以历史存档安全
+                _mdb.save_event_themes(res, trade_date=_nat)
             attach_streaks(res.get("topStocks") or [], _sess, code_key="ticker")
             res["live_rebuild"] = True          # 本次是「此刻实时」构建（非读存档）
         return jsonify(res)

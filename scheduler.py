@@ -135,7 +135,26 @@ def tick(now=None):
     except Exception:
         return False
     if today not in days:
-        return False
+        # —— 非交易日（周末 / 节假日）——
+        # 人气榜、热点榜、热门话题、热门文章这些「关注度」数据**每天照常在更新**，
+        # 所以非交易日也做一次轻量抓取（只抓 hotlist + themes），归到「今天的自然日」。
+        if (now.hour * 60 + now.minute) < 9 * 60:
+            return False                         # 凌晨先不跑
+        try:
+            if _mdb.has_fetch_log("job:offday", today, "ok"):
+                return False                     # 今天已经抓过
+        except Exception:
+            pass
+        _key = ("offday", today)
+        _last = _LAST_ATTEMPT.get(_key)
+        if _last and (time.time() - _last) < _COOLDOWN:
+            return False
+        _LAST_ATTEMPT[_key] = time.time()
+        try:
+            run_offday_job(today)
+        except Exception as e:
+            _log("非交易日抓取失败: %s" % e)
+        return True
 
     mins = now.hour * 60 + now.minute
     due = []
@@ -180,6 +199,37 @@ def tick(now=None):
 # ---------------------------------------------------------------------------
 # 抓取步骤（run_job 与补抓共用）
 # ---------------------------------------------------------------------------
+
+def run_offday_job(target_date=None, progress=None):
+    """非交易日抓取：只抓「关注度」类数据（人气榜 + 题材热度），归到自然日。
+
+    非交易日没有行情与K线，但**人气榜 / 热点榜 / 热门话题 / 热门文章每天都在更新**，
+    所以这两项照常抓取并归档 —— 这样「题材多日对照」就能看到周末/节假日的数据。
+    """
+    import market_db as _mdb
+
+    t0 = time.time()
+    started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    target = target_date or datetime.now().strftime("%Y-%m-%d")
+    result = {"target": target, "job": "offday", "mode": "offday",
+              "steps": {}, "started_at": started}
+    step = _make_step(result, progress)
+
+    step("hotlist", lambda: _fetch_hotlist(target))
+    step("themes", lambda: _fetch_themes(target))
+
+    result["ok"] = all(not str(v).startswith("error") for v in result["steps"].values())
+    result["elapsed"] = round(time.time() - t0, 1)
+    try:
+        _mdb.log_fetch("job:offday", source="scheduler", trade_date=target,
+                       status="ok" if result["ok"] else "partial",
+                       duration_ms=int(result["elapsed"] * 1000),
+                       detail=str(result["steps"]))
+    except Exception:
+        pass
+    _log("非交易日抓取完成 target=%s ok=%s 用时%.1fs" % (target, result["ok"], result["elapsed"]))
+    return result
+
 
 def _fetch_calendar():
     import screener
