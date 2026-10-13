@@ -920,11 +920,18 @@ def market_history_api():
     except Exception:
         days = 45
     days = max(5, min(days, 120))
+    start = (request.args.get("start") or "").strip()
+    end = (request.args.get("end") or "").strip()
     try:
-        rows = _mdb.daily_market_stats(days)
+        rows = _mdb.daily_market_stats(120 if (start or end) else days)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-    return jsonify({"success": True, "days": days, "rows": rows, "count": len(rows)})
+    if start:
+        rows = [x for x in rows if x["date"] >= start]
+    if end:
+        rows = [x for x in rows if x["date"] <= end]
+    return jsonify({"success": True, "days": days, "start": start, "end": end,
+                    "rows": rows, "count": len(rows)})
 
 
 @app.route("/api/market-score")

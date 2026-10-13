@@ -2286,13 +2286,54 @@ function renderMultiByDate() {
 let mhChart = null;
 let mhLoaded = false;
 
+let mhStart = '';      // 日期范围（留空 = 不限）
+let mhEnd = '';
+
+function onMhRangeChange() {
+    const s = document.getElementById('mh-start');
+    const e = document.getElementById('mh-end');
+    mhStart = (s && s.value) || '';
+    mhEnd = (e && e.value) || '';
+    loadMarketHistory(true);
+}
+
+function mhQuickRange(n) {
+    // 以「最新有数据的交易日」为终点，往前推 n 个自然日
+    fetch('/api/market-history?days=1').then(function (x) { return x.json(); }).then(function (r) {
+        const last = (r && r.success && r.rows && r.rows.length) ? r.rows[r.rows.length - 1].date : null;
+        if (!last) return;
+        const d = new Date(last + 'T00:00:00');
+        d.setDate(d.getDate() - n);
+        const pad = function (v) { return (v < 10 ? '0' : '') + v; };
+        const st = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+        const si = document.getElementById('mh-start');
+        const ei = document.getElementById('mh-end');
+        if (si) si.value = st;
+        if (ei) ei.value = last;
+        mhStart = st; mhEnd = last;
+        loadMarketHistory(true);
+    });
+}
+
+function mhResetRange() {
+    const si = document.getElementById('mh-start');
+    const ei = document.getElementById('mh-end');
+    if (si) si.value = '';
+    if (ei) ei.value = '';
+    mhStart = ''; mhEnd = '';
+    loadMarketHistory(true);
+}
+
 async function loadMarketHistory(force) {
     if (mhLoaded && !force) return;
     const body = document.getElementById('mh-body');
     if (body) body.innerHTML = '<tr><td colspan="6" class="empty-cell">正在统计…</td></tr>';
     let r;
     try {
-        r = await (await fetch('/api/market-history?days=45')).json();
+        let _u = '/api/market-history?days=45';
+        if (mhStart) _u += '&start=' + encodeURIComponent(mhStart);
+        if (mhEnd) _u += '&end=' + encodeURIComponent(mhEnd);
+        r = await (await fetch(_u)).json();
     } catch (e) {
         if (body) body.innerHTML = '<tr><td colspan="6" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
         return;
@@ -2309,7 +2350,9 @@ function renderMarketHistory(rows) {
     const body = document.getElementById('mh-body');
     const sum = document.getElementById('mh-summary');
     if (!rows.length) {
-        if (body) body.innerHTML = '<tr><td colspan="6" class="empty-cell">暂无数据</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="6" class="empty-cell">该日期范围内暂无数据</td></tr>';
+        if (sum) sum.innerHTML = '<span class="mh-item dim">该日期范围内暂无数据</span>';
+        if (mhChart) mhChart.clear();
         return;
     }
     const last = rows[rows.length - 1];
@@ -2320,7 +2363,8 @@ function renderMarketHistory(rows) {
                 (last.score == null ? '--' : last.score) + '</b></span>' +
             '<span class="mh-item">上涨 <b class="up">' + last.up + '</b></span>' +
             '<span class="mh-item">下跌 <b class="down">' + last.down + '</b></span>' +
-            '<span class="mh-item dim">共 ' + rows.length + ' 个交易日</span>';
+            '<span class="mh-item dim">共 ' + rows.length + ' 个交易日' +
+                (mhStart || mhEnd ? '（' + (mhStart || '最早') + ' ~ ' + (mhEnd || '最新') + '）' : '') + '</span>';
     }
     if (body) {
         body.innerHTML = rows.slice().reverse().map(function (x) {
