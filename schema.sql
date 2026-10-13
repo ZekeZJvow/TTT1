@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS daily_kline (
   UNIQUE (stock_code, trade_date)
 );
 CREATE INDEX IF NOT EXISTS ix_k_date  ON daily_kline(trade_date);
+CREATE INDEX IF NOT EXISTS ix_k_date_pct ON daily_kline(trade_date, change_pct);
 CREATE INDEX IF NOT EXISTS ix_k_stock ON daily_kline(stock_code, trade_date);
 
 -- 8. 分时线（按需存储 + 定期清理）
@@ -243,7 +244,20 @@ CREATE TABLE IF NOT EXISTS theme_top_stock (
 );
 CREATE INDEX IF NOT EXISTS ix_tts_date_rank ON theme_top_stock(trade_date, rank);
 
--- 16. 每日涨跌家数（沪深京全部 A 股口径 —— 与同花顺「涨跌分布」一致）
+-- 16. 每日封板率统计（离线算好落库，供「行情评分走势」秒读）
+CREATE TABLE IF NOT EXISTS market_seal_stats (
+  trade_date   TEXT PRIMARY KEY,
+  up_count     INTEGER,
+  down_count   INTEGER,
+  flat_count   INTEGER,
+  final_count  INTEGER,               -- 入选池（昨日未涨停 + 今日冲高>9%）
+  sealed_count INTEGER,               -- 其中封住涨停的
+  score        REAL,                  -- 封板率 = sealed/final*100
+  src          TEXT,
+  computed_at  TEXT
+);
+
+-- 17. 每日涨跌家数（沪深京全部 A 股口径 —— 与同花顺「涨跌分布」一致）
 CREATE TABLE IF NOT EXISTS market_breadth (
   trade_date   TEXT PRIMARY KEY,
   up_count     INTEGER,                  -- 上涨家数

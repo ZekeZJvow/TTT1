@@ -922,9 +922,23 @@ def market_history_api():
     days = max(5, min(days, 120))
     start = (request.args.get("start") or "").strip()
     end = (request.args.get("end") or "").strip()
+    # 窗口：默认 120 天；指定了开始日期就往前覆盖到那天（最多 500 天）
+    n = 120
+    if start:
+        try:
+            _need = (datetime.now().date()
+                     - datetime.strptime(start, "%Y-%m-%d").date()).days + 30
+            n = max(120, min(_need, 500))
+        except Exception:
+            n = 260
     try:
-        # 统一按 120 天算一次（内部有 30 秒缓存），再按区间 / 天数裁剪
-        rows = _mdb.daily_market_stats(120)
+        # 内部有缓存（写入入库时会主动清），重复请求不再重算
+        rows = _mdb.daily_market_stats(n)
+        # 统计落后于最新日K时，后台补算（不阻塞本次响应）
+        try:
+            _mdb.ensure_seal_stats_async()
+        except Exception:
+            pass
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
     if start:
@@ -933,8 +947,12 @@ def market_history_api():
         rows = [x for x in rows if x["date"] <= end]
     if not (start or end):
         rows = rows[-days:]
+    try:
+        months = _mdb.available_months()
+    except Exception:
+        months = []
     return jsonify({"success": True, "days": days, "start": start, "end": end,
-                    "rows": rows, "count": len(rows)})
+                    "rows": rows, "count": len(rows), "months": months})
 
 
 @app.route("/api/market-score")
@@ -1693,7 +1711,9 @@ def run_server(host="0.0.0.0", port=5000, **kw):
         try:
             time.sleep(3)
             import market_db as _m
-            _m.daily_market_stats(120)
+            _m.compute_seal_stats()          # 只补缺的日子，通常 0 天
+            _m.daily_market_stats(500)       # 预热读缓存
+            _m.available_months()
         except Exception:
             pass
     try:

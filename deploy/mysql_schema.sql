@@ -127,6 +127,7 @@ CREATE TABLE IF NOT EXISTS daily_kline (
   PRIMARY KEY (id),
   UNIQUE KEY uk_kline (stock_code, trade_date),
   KEY ix_k_date (trade_date),
+  KEY ix_k_date_pct (trade_date, change_pct),
   KEY ix_k_stock (stock_code, trade_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -247,6 +248,19 @@ CREATE TABLE IF NOT EXISTS theme_top_stock (
   KEY ix_tts_date_rank (trade_date, `rank`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+
+CREATE TABLE IF NOT EXISTS market_seal_stats (
+  trade_date   DATE      NOT NULL,
+  up_count     INT           NULL,
+  down_count   INT           NULL,
+  flat_count   INT           NULL,
+  final_count  INT           NULL,
+  sealed_count INT           NULL,
+  score        DECIMAL(6,2)  NULL,
+  src          VARCHAR(16)   NULL,
+  computed_at  DATETIME      NULL,
+  PRIMARY KEY (trade_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS market_breadth (
   trade_date   DATE       NOT NULL,

@@ -436,6 +436,12 @@ def _fetch_turnover():
     return _mt.sync_recent(10)
 
 
+def _fetch_seal(target=None):
+    """离线算好「每日封板率」并落库（只算缺的日子，一般 1 天）"""
+    import market_db as _mdb
+    return "封板率+%d天" % _mdb.compute_seal_stats()
+
+
 def _fetch_breadth(target):
     """涨跌家数落库（沪深京全部 A 股口径 —— 与同花顺「涨跌分布」一致）"""
     import market_breadth as _mb
@@ -461,6 +467,7 @@ def run_daily_job(target_date=None, progress=None, name="close"):
     step("screen", lambda: _fetch_scan(target))
     step("turnover", _fetch_turnover)
     step("breadth", lambda: _fetch_breadth(target))
+    step("sealstats", lambda: _fetch_seal(target))
     step("themes", lambda: _fetch_themes(target))
 
     # 1) 第一次完整性校验

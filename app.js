@@ -2290,7 +2290,8 @@ let mhStart = '';      // 日期范围（留空 = 不限）
 let mhEnd = '';
 let mhMonth = null;    // 当前选中的月份（1~12；null = 未选）
 let mhLatest = '';     // 最新有数据的交易日（用于确定年份）
-let mhHasMonths = {};  // 有数据的月份集合（默认全景视图下统计）
+let mhHasMonths = {};   // 有数据的月份集合（默认全景视图下统计，兜底用）
+let mhMonthsAvail = null;  // 服务端返回的「有数据的月份」（YYYY-MM）
 
 function mhPad(v) { return (v < 10 ? '0' : '') + v; }
 
@@ -2320,11 +2321,12 @@ function mhSyncMonthUI() {
     for (let k = 1; k <= 12; k++) {
         const el = document.getElementById('mh-m' + k);
         if (!el) continue;
-        const has = !!mhHasMonths[k];
+        const ym = y + '-' + mhPad(k);
+        const has = mhMonthsAvail ? !!mhMonthsAvail[ym] : !!mhHasMonths[k];
         el.classList.toggle('active', mhMonth === k);
         el.disabled = !has;
         el.classList.toggle('mh-month-empty', !has);
-        el.title = has ? (y + '年' + k + '月') : (y + '年' + k + '月（本地暂无数据）');
+        el.title = has ? (y + '年' + k + '月') : (y + '年' + k + '月（本地暂无数据，可跑历史补齐）');
     }
 }
 
@@ -2387,6 +2389,10 @@ async function loadMarketHistory(force) {
         return;
     }
     mhLoaded = true;
+    if (r.months && r.months.length) {
+        mhMonthsAvail = {};
+        for (let i = 0; i < r.months.length; i++) mhMonthsAvail[r.months[i]] = true;
+    }
     renderMarketHistory(r.rows || []);
 }
 
