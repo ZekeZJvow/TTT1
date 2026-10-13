@@ -243,6 +243,16 @@ CREATE TABLE IF NOT EXISTS theme_top_stock (
 );
 CREATE INDEX IF NOT EXISTS ix_tts_date_rank ON theme_top_stock(trade_date, rank);
 
+-- 16. 每日两市成交额（沪市 + 深市，单位：亿元）—— 供「行情评分走势」的成交额总计 / 较上一日
+CREATE TABLE IF NOT EXISTS market_turnover (
+  trade_date   TEXT PRIMARY KEY,
+  sh_amount    REAL,                     -- 沪市成交额（亿元）
+  sz_amount    REAL,                     -- 深市成交额（亿元）
+  amount       REAL,                     -- 两市合计（亿元）
+  source       TEXT,
+  collected_at TEXT
+);
+
 -- ============================================================================
 -- 三、结果层
 -- ============================================================================

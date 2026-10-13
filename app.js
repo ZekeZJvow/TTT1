@@ -2327,7 +2327,7 @@ function mhResetRange() {
 async function loadMarketHistory(force) {
     if (mhLoaded && !force) return;
     const body = document.getElementById('mh-body');
-    if (body) body.innerHTML = '<tr><td colspan="6" class="empty-cell">正在统计…</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">正在统计…</td></tr>';
     let r;
     try {
         let _u = '/api/market-history?days=45';
@@ -2335,22 +2335,47 @@ async function loadMarketHistory(force) {
         if (mhEnd) _u += '&end=' + encodeURIComponent(mhEnd);
         r = await (await fetch(_u)).json();
     } catch (e) {
-        if (body) body.innerHTML = '<tr><td colspan="6" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
         return;
     }
     if (!r || !r.success) {
-        if (body) body.innerHTML = '<tr><td colspan="6" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
         return;
     }
     mhLoaded = true;
     renderMarketHistory(r.rows || []);
 }
 
+function fmtMhAmount(v) {
+    // 成交额（亿元）-> 1.68万亿 / 8966亿
+    if (v === null || v === undefined || v === '') return '—';
+    const n = Number(v);
+    if (!isFinite(n)) return '—';
+    return Math.abs(n) >= 10000 ? (n / 10000).toFixed(2) + '万亿' : Math.round(n) + '亿';
+}
+
+function fmtMhDiff(v) {
+    // 较上一日 -> 增量 +1382亿 / 缩量 -1382亿
+    if (v === null || v === undefined || v === '') return '—';
+    const n = Number(v);
+    if (!isFinite(n)) return '—';
+    const a = Math.abs(n);
+    const txt = a >= 10000 ? (a / 10000).toFixed(2) + '万亿' : Math.round(a) + '亿';
+    return (n >= 0 ? '增量 +' : '缩量 -') + txt;
+}
+
+function mhDiffCls(v) {
+    if (v === null || v === undefined || v === '') return 'dim';
+    const n = Number(v);
+    if (!isFinite(n) || n === 0) return 'dim';
+    return n > 0 ? 'up' : 'down';
+}
+
 function renderMarketHistory(rows) {
     const body = document.getElementById('mh-body');
     const sum = document.getElementById('mh-summary');
     if (!rows.length) {
-        if (body) body.innerHTML = '<tr><td colspan="6" class="empty-cell">该日期范围内暂无数据</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">该日期范围内暂无数据</td></tr>';
         if (sum) sum.innerHTML = '<span class="mh-item dim">该日期范围内暂无数据</span>';
         if (mhChart) mhChart.clear();
         return;
@@ -2363,6 +2388,9 @@ function renderMarketHistory(rows) {
                 (last.score == null ? '--' : last.score) + '</b></span>' +
             '<span class="mh-item">上涨 <b class="up">' + last.up + '</b></span>' +
             '<span class="mh-item">下跌 <b class="down">' + last.down + '</b></span>' +
+            '<span class="mh-item">成交额 <b class="up-strong">' + fmtMhAmount(last.amount) + '</b></span>' +
+            '<span class="mh-item">较上一日 <b class="' + mhDiffCls(last.amount_diff) + '">' +
+                fmtMhDiff(last.amount_diff) + '</b></span>' +
             '<span class="mh-item dim">共 ' + rows.length + ' 个交易日' +
                 (mhStart || mhEnd ? '（' + (mhStart || '最早') + ' ~ ' + (mhEnd || '最新') + '）' : '') + '</span>';
     }
@@ -2377,6 +2405,8 @@ function renderMarketHistory(rows) {
                 '<td class="num down">' + x.down + '</td>' +
                 '<td class="num dim">' + x.flat + '</td>' +
                 '<td class="num dim">' + ratio + '</td>' +
+                '<td class="num up-strong">' + fmtMhAmount(x.amount) + '</td>' +
+                '<td class="num ' + mhDiffCls(x.amount_diff) + '">' + fmtMhDiff(x.amount_diff) + '</td>' +
                 '</tr>';
         }).join('');
     }
@@ -2388,7 +2418,16 @@ function renderMarketHistory(rows) {
         tooltip: {
             trigger: 'axis',
             backgroundColor: 'rgba(26,26,46,0.95)', borderColor: '#444',
-            textStyle: { color: '#fff', fontSize: 13 }
+            textStyle: { color: '#fff', fontSize: 13 },
+            formatter: function (ps) {
+                if (!ps || !ps.length) return '';
+                const x = rows[ps[0].dataIndex] || {};
+                return '<b>' + escHtml(x.date || '') + '</b>' +
+                    '<br>行情评分：' + (x.score == null ? '—' : x.score) +
+                    '<br>上涨家数：' + x.up + '　下跌家数：' + x.down +
+                    '<br>成交额总计：' + fmtMhAmount(x.amount) +
+                    '<br>较上一日：' + fmtMhDiff(x.amount_diff);
+            }
         },
         legend: { data: ['行情评分', '上涨家数', '下跌家数'], textStyle: { color: '#a0a0a0' }, top: 4 },
         grid: { left: 56, right: 64, top: 46, bottom: 58 },

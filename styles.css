@@ -1357,4 +1357,11 @@ body {
 .mh-summary .mh-item b { font-size: 1.15rem; margin-left: 4px; }
 .mh-table td, .mh-table th { white-space: nowrap; }
 .mh-table td.num.mid { color: #f39c12; }
+.mh-table td.num.up, .mh-table td.num.up-strong { color: #ff5252; font-weight: 600; }
+.mh-table td.num.down { color: #2ecc71; }
+.mh-table td.num.dim { color: #8a8a8a; }
+.mh-summary .mh-item b.up, .mh-summary .mh-item b.up-strong { color: #ff5252; }
+.mh-summary .mh-item b.down { color: #2ecc71; }
+.mh-summary .mh-item b.mid { color: #f39c12; }
+.mh-summary .mh-item b.dim { color: #8a8a8a; }
 

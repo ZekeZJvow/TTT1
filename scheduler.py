@@ -429,6 +429,12 @@ def run_light_job(name="morning", target_date=None, progress=None):
 # 全量任务（尾盘：日历 + 人气榜 + 全市场扫描 + 题材），含完整性校验与自动补抓
 # ---------------------------------------------------------------------------
 
+def _fetch_turnover():
+    """两市成交额（沪市 + 深市）落库：收盘后先取实时，再用指数日K覆盖最近 10 天"""
+    import market_turnover as _mt
+    return _mt.sync_recent(10)
+
+
 def run_daily_job(target_date=None, progress=None, name="close"):
     import server as _server
     import market_db as _mdb
@@ -443,6 +449,7 @@ def run_daily_job(target_date=None, progress=None, name="close"):
     step("calendar", _fetch_calendar)
     step("hotlist", lambda: _fetch_hotlist(target))
     step("screen", lambda: _fetch_scan(target))
+    step("turnover", _fetch_turnover)
     step("themes", lambda: _fetch_themes(target))
 
     # 1) 第一次完整性校验

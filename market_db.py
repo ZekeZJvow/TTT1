@@ -1497,6 +1497,7 @@ DATE_COLUMN = {
     "screening_result": "target_date",
     "scan_stock": "target_date",
     "trade_calendar": "trade_date",
+    "market_turnover": "trade_date",
     "raw_payload": "trade_date",
     "stock_news": "news_date",
     "fetch_log": None,
@@ -1509,6 +1510,7 @@ _TABLES = ("stock", "trade_calendar", "theme_catalog", "theme_member",
            "hotlist_snapshot", "limit_up_pool", "daily_kline", "minute_kline",
            "stock_news", "stock_anomaly", "dragon_tiger",
            "theme_heat_snapshot", "theme_topic", "theme_topic_link", "theme_top_stock",
+           "market_turnover",
            "screening_run", "screening_result", "scan_stock", "fetch_log", "raw_payload")
 
 _CLEARABLE = tuple(DATE_COLUMN.keys())
@@ -1524,6 +1526,7 @@ TABLE_LABEL = {
     "theme_top_stock": "题材Top50个股", "screening_run": "选股任务",
     "screening_result": "选股结果明细", "scan_stock": "扫描暂存(断点续传)",
     "fetch_log": "抓取日志",
+    "market_turnover": "两市成交额",
     "raw_payload": "原始响应快照",
 }
 
@@ -2142,6 +2145,59 @@ def hotlist_days_summary(start, end):
     }
 
 
+def save_turnover_batch(rows, source="em_index"):
+    """写入每日两市成交额（单位：亿元）
+
+    rows = [{"date": "2026-10-13", "sh": 7793.02, "sz": 8966.06, "amount": 16759.08}, ...]
+    幂等：同一日期重复写入按 UPSERT 覆盖（保留最新一次）。
+    """
+    rows = [r for r in (rows or []) if r and (r.get("date") or r.get("trade_date"))]
+    if not rows:
+        return 0
+
+    def _f(conn):
+        cur = conn.cursor()
+        sql = _upsert("market_turnover",
+                      ["trade_date", "sh_amount", "sz_amount", "amount", "source", "collected_at"],
+                      ["trade_date"],
+                      ["sh_amount", "sz_amount", "amount", "source", "collected_at"])
+        ts = now_str()
+        n = 0
+        for r in rows:
+            cur.execute(sql, (str(r.get("date") or r.get("trade_date")),
+                              _num(r.get("sh")), _num(r.get("sz")), _num(r.get("amount")),
+                              source, ts))
+            n += 1
+        return n
+    return _write(_f)
+
+
+def market_turnover_map(start=None, end=None):
+    """读「两市成交额」历史 -> {trade_date: 亿元}
+
+    start/end 为 'YYYY-MM-DD'（含端点），留空表示不限。
+    """
+
+    def _f(conn):
+        sql = "SELECT `trade_date`,`amount` FROM `market_turnover`"
+        cond, args = [], []
+        if start:
+            cond.append("`trade_date`>=?"); args.append(start)
+        if end:
+            cond.append("`trade_date`<=?"); args.append(end)
+        if cond:
+            sql += " WHERE " + " AND ".join(cond)
+        out = {}
+        for r in conn.execute(sql, tuple(args)).fetchall():
+            if r["amount"] is not None:
+                try:
+                    out[r["trade_date"]] = float(r["amount"])
+                except Exception:
+                    pass
+        return out
+    return _read(_f, {}) or {}
+
+
 def daily_market_stats(max_days=45, prefer_screening=True):
     """按日统计「行情评分 + 涨跌家数」（用本地日K，规则与动态选股完全一致）
 
@@ -2179,6 +2235,15 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                 "SELECT stock_code, trade_date, high, close, change_pct FROM daily_kline "
                 "WHERE trade_date >= ?", (start,)).fetchall():
             K.setdefault(r["stock_code"], {})[r["trade_date"]] = r
+        # 两市成交额（亿元）：用于「成交额总计 / 较上一日」
+        tmap = {}
+        try:
+            for r in conn.execute(
+                    "SELECT `trade_date`,`amount` FROM `market_turnover`").fetchall():
+                if r["amount"] is not None:
+                    tmap[r["trade_date"]] = float(r["amount"])
+        except Exception:
+            tmap = {}
         out = []
         real = {}
         if prefer_screening:
@@ -2229,8 +2294,13 @@ def daily_market_stats(max_days=45, prefer_screening=True):
             if d in real:
                 score = round(real[d], 1)
                 src = "screening"
+            amt = tmap.get(d)
+            prev_amt = tmap.get(all_need[i - 1]) if i >= 1 else None
+            diff = (round(amt - prev_amt, 2)
+                    if (amt is not None and prev_amt is not None) else None)
             out.append({"date": d, "up": up, "down": down, "flat": flat,
-                        "final": final, "sealed": sealed, "score": score, "src": src})
+                        "final": final, "sealed": sealed, "score": score, "src": src,
+                        "amount": amt, "amount_prev": prev_amt, "amount_diff": diff})
         return out[-int(max_days):]
     return _read(_f, []) or []
 
