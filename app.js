@@ -889,6 +889,18 @@ function renderFunnel(res) {
     });
     html += '</div>';
     html += '<div class="funnel-note">封板率 <b>' + res.sealedRate + '%</b>（' + f.sealed + ' / ' + f.final + '）</div>';
+
+    // 今日行情评分 = 封板率（0~100 分），大字号展示在最上方
+    (function () {
+        var sc = Number(res.sealedRate);
+        var el = document.getElementById('ms-score');
+        if (!el) return;
+        el.textContent = isNaN(sc) ? '--' : sc.toFixed(1);
+        el.className = isNaN(sc) ? '' : (sc >= 70 ? 'up-strong' : (sc >= 50 ? 'mid' : 'down'));
+        var s1 = document.getElementById('ms-sealed'); if (s1) s1.textContent = f.sealed;
+        var s2 = document.getElementById('ms-final'); if (s2) s2.textContent = f.final;
+        var box = document.getElementById('market-score-box'); if (box) box.classList.remove('hidden');
+    })();
     document.getElementById('funnel-body').innerHTML = html;
 }
 
