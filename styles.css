@@ -1326,4 +1326,30 @@ body {
 @media (max-width: 768px) {
     .market-score .ms-value { font-size: 3rem; }
 }
+/* ---------- 页头：左标题 + 右「今日行情评分」 ---------- */
+.header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 18px; flex-wrap: wrap; padding: 22px 0 16px; text-align: left;
+}
+.header .header-text { text-align: left; }
+.market-score {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 10px 26px 12px; border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+    border: 1px solid rgba(255,255,255,0.12);
+}
+.market-score .ms-label { color: #a0a0a0; font-size: .78rem; letter-spacing: 3px; white-space: nowrap; }
+.market-score .ms-value {
+    font-size: 2.9rem; font-weight: 800; line-height: 1.08; color: #fff;
+    font-variant-numeric: tabular-nums; text-shadow: 0 2px 14px rgba(0,0,0,.45);
+}
+.market-score .ms-value .ms-unit { font-size: 1rem; font-weight: 600; margin-left: 6px; color: #9aa0a6; letter-spacing: 0; }
+.market-score .ms-value #ms-score.up-strong { color: #ff5252; }
+.market-score .ms-value #ms-score.mid { color: #f39c12; }
+.market-score .ms-value #ms-score.down { color: #2ecc71; }
+@media (max-width: 768px) {
+    .header { justify-content: center; text-align: center; }
+    .header .header-text { text-align: center; }
+    .market-score .ms-value { font-size: 2.2rem; }
+}
 

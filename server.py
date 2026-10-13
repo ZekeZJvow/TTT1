@@ -912,6 +912,33 @@ def screen_report():
     return _screener.render_report_html(res), 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
+@app.route("/api/market-score")
+def market_score_api():
+    """今日行情评分（= 封板率）。只读缓存/本地库，**不触发扫描**。
+
+    供首页页头在打开页面时直接显示，不必先点一次扫描。
+    """
+    target = (request.args.get("date") or "").strip() or _session_date()
+    try:
+        res = SCREEN_CACHE.get(target) or _mdb.load_screening(target)
+        if not res or not res.get("success"):
+            # 场次日期没有结果时，退回"最近一次有结果的日期"，这样首页一打开就能显示分数
+            res = None
+            for _d in (_mdb.screening_dates(10) or []):
+                _r = SCREEN_CACHE.get(_d) or _mdb.load_screening(_d)
+                if _r and _r.get("success"):
+                    res = _r
+                    target = _d
+                    break
+    except Exception:
+        res = None
+    if not res or not res.get("success"):
+        return jsonify({"success": True, "date": target, "score": None})
+    f = res.get("funnel") or {}
+    return jsonify({"success": True, "date": target, "score": res.get("sealedRate"),
+                    "sealed": f.get("sealed"), "final": f.get("final")})
+
+
 @app.route("/api/screen")
 def screen_sync():
     target = (request.args.get("date") or "").strip()

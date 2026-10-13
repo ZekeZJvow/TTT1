@@ -11,7 +11,30 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('A股人气雷达 已加载');
     // auto load on page open
     fetchData();
+    loadMarketScore();          // 页头「今日行情评分」：只读已有结果，不触发扫描
 });
+
+// 页头今日行情评分（= 封板率）
+function setMarketScore(score) {
+    var el = document.getElementById('ms-score');
+    if (!el) return;
+    var sc = Number(score);
+    if (score === null || score === undefined || score === '' || isNaN(sc)) {
+        el.textContent = '--';
+        el.className = '';
+        return;
+    }
+    el.textContent = sc.toFixed(1);
+    el.className = (sc >= 70 ? 'up-strong' : (sc >= 50 ? 'mid' : 'down'));
+}
+
+async function loadMarketScore(dateOpt) {
+    try {
+        var q = dateOpt ? ('?date=' + encodeURIComponent(dateOpt)) : '';
+        var r = await (await fetch('/api/market-score' + q)).json();
+        if (r && r.success) setMarketScore(r.score);
+    } catch (e) { /* 忽略：显示 -- 即可 */ }
+}
 
 // ==================== 数据获取 ====================
 async function fetchData(dateOpt) {
@@ -897,8 +920,6 @@ function renderFunnel(res) {
         if (!el) return;
         el.textContent = isNaN(sc) ? '--' : sc.toFixed(1);
         el.className = isNaN(sc) ? '' : (sc >= 70 ? 'up-strong' : (sc >= 50 ? 'mid' : 'down'));
-        var s1 = document.getElementById('ms-sealed'); if (s1) s1.textContent = f.sealed;
-        var s2 = document.getElementById('ms-final'); if (s2) s2.textContent = f.final;
         var box = document.getElementById('market-score-box'); if (box) box.classList.remove('hidden');
     })();
     document.getElementById('funnel-body').innerHTML = html;

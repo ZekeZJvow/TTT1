@@ -11,8 +11,14 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1>📈 A股人气雷达</h1>
-            <p class="subtitle">人气榜 · 题材热度 · 首板选股 · 数据复盘</p>
+            <div class="header-text">
+                <h1>📈 A股人气雷达</h1>
+                <p class="subtitle">人气榜 · 题材热度 · 首板选股 · 数据复盘</p>
+            </div>
+            <div class="market-score" id="market-score-box" title="今日行情评分 = 当日封板率">
+                <div class="ms-label">今日行情评分</div>
+                <div class="ms-value"><span id="ms-score">--</span><span class="ms-unit">分</span></div>
+            </div>
         </header>
 
         <nav class="mode-tabs">
@@ -177,11 +183,6 @@
 
             <div id="screen-result" class="hidden">
 
-                <div class="market-score" id="market-score-box">
-                    <div class="ms-label">今日行情评分</div>
-                    <div class="ms-value"><span id="ms-score">--</span><span class="ms-unit">分</span></div>
-                    <div class="ms-note">取值 = 封板率 ｜ 封住涨停 <b id="ms-sealed">-</b> / 入选池 <b id="ms-final">-</b></div>
-                </div>
                 <div class="screen-meta">
                     <div class="meta-item"><span class="meta-label">数据所属交易日</span><span id="sc-target" class="meta-value"></span></div>
                     <div class="meta-item"><span class="meta-label">前一交易日</span><span id="sc-prev" class="meta-value"></span></div>
