@@ -248,6 +248,18 @@ CREATE TABLE IF NOT EXISTS theme_top_stock (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
+CREATE TABLE IF NOT EXISTS market_breadth (
+  trade_date   DATE       NOT NULL,
+  up_count     INT            NULL,
+  down_count   INT            NULL,
+  flat_count   INT            NULL,
+  total_count  INT            NULL,
+  suspended    INT            NULL,
+  source       VARCHAR(32)    NULL,
+  collected_at DATETIME       NULL,
+  PRIMARY KEY (trade_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS market_turnover (
   trade_date   DATE            NOT NULL,
   sh_amount    DECIMAL(16,2)       NULL,

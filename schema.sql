@@ -243,7 +243,19 @@ CREATE TABLE IF NOT EXISTS theme_top_stock (
 );
 CREATE INDEX IF NOT EXISTS ix_tts_date_rank ON theme_top_stock(trade_date, rank);
 
--- 16. 每日两市成交额（沪市 + 深市，单位：亿元）—— 供「行情评分走势」的成交额总计 / 较上一日
+-- 16. 每日涨跌家数（沪深京全部 A 股口径 —— 与同花顺「涨跌分布」一致）
+CREATE TABLE IF NOT EXISTS market_breadth (
+  trade_date   TEXT PRIMARY KEY,
+  up_count     INTEGER,                  -- 上涨家数
+  down_count   INTEGER,                  -- 下跌家数
+  flat_count   INTEGER,                  -- 平盘家数
+  total_count  INTEGER,                  -- 统计总数
+  suspended    INTEGER,                  -- 停牌/无行情 家数
+  source       TEXT,
+  collected_at TEXT
+);
+
+-- 17. 每日两市成交额（沪市 + 深市，单位：亿元）—— 供「行情评分走势」的成交额总计 / 较上一日
 CREATE TABLE IF NOT EXISTS market_turnover (
   trade_date   TEXT PRIMARY KEY,
   sh_amount    REAL,                     -- 沪市成交额（亿元）

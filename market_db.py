@@ -784,10 +784,10 @@ def _upsert_stock(cur, code, name=None):
     code = clean_code(code)
     if not code:
         return
-    if code.startswith(("6", "9")):
-        market = "SH"
-    elif code.startswith(("4", "8")):
+    if code.startswith(("92", "43", "83", "87", "88", "4", "8")):
         market = "BJ"
+    elif code.startswith(("6", "9")):
+        market = "SH"
     else:
         market = "SZ"
     if code.startswith(("600", "601", "603", "605", "000", "001", "002", "003")):
@@ -1497,6 +1497,7 @@ DATE_COLUMN = {
     "screening_result": "target_date",
     "scan_stock": "target_date",
     "trade_calendar": "trade_date",
+    "market_breadth": "trade_date",
     "market_turnover": "trade_date",
     "raw_payload": "trade_date",
     "stock_news": "news_date",
@@ -1510,7 +1511,7 @@ _TABLES = ("stock", "trade_calendar", "theme_catalog", "theme_member",
            "hotlist_snapshot", "limit_up_pool", "daily_kline", "minute_kline",
            "stock_news", "stock_anomaly", "dragon_tiger",
            "theme_heat_snapshot", "theme_topic", "theme_topic_link", "theme_top_stock",
-           "market_turnover",
+           "market_breadth", "market_turnover",
            "screening_run", "screening_result", "scan_stock", "fetch_log", "raw_payload")
 
 _CLEARABLE = tuple(DATE_COLUMN.keys())
@@ -1526,6 +1527,7 @@ TABLE_LABEL = {
     "theme_top_stock": "题材Top50个股", "screening_run": "选股任务",
     "screening_result": "选股结果明细", "scan_stock": "扫描暂存(断点续传)",
     "fetch_log": "抓取日志",
+    "market_breadth": "涨跌家数",
     "market_turnover": "两市成交额",
     "raw_payload": "原始响应快照",
 }
@@ -1537,7 +1539,7 @@ TABLE_LABEL = {
 INTEGRITY_RULES = [
     ("hotlist_snapshot", 30, "exact", "人气榜应为 30 条（最新一次抓取）", True, "captured_at"),
     ("limit_up_pool", 5, "min", "涨停/炸板池至少 5 条", True, None),
-    ("daily_kline", 1000, "min", "日K线至少 1000 条（沪深主板非ST）", True, None),
+    ("daily_kline", 1000, "min", "日K线至少 1000 条（沪深京全部A股）", True, None),
     ("theme_heat_snapshot", 3, "min", "题材热度至少 3 个题材", True, None),
     ("theme_top_stock", 3, "min", "题材个股至少 3 条", True, None),
     ("screening_run", 1, "min", "选股任务应有记录", True, None),
@@ -2145,6 +2147,85 @@ def hotlist_days_summary(start, end):
     }
 
 
+def save_stock_names(rows):
+    """保存「代码 -> 名称」（来源：全市场行情列表），用于识别 ST 股
+
+    rows = [{"code": "600340", "name": "*ST华业"}, ...]
+    """
+    rows = [r for r in (rows or []) if clean_code(r.get("code")) and (r.get("name") or "").strip()]
+    if not rows:
+        return 0
+
+    def _f(conn):
+        cur = conn.cursor()
+        n = 0
+        for r in rows:
+            _upsert_stock(cur, r["code"], str(r["name"]).strip())
+            n += 1
+        return n
+    return _write(_f)
+
+
+def st_stock_codes():
+    """当前 ST / *ST 股票代码集合（用于「动态选股」口径的非ST过滤）"""
+    def _f(conn):
+        out = set()
+        for r in conn.execute(
+                "SELECT `code`,`name` FROM `stock` WHERE `name` IS NOT NULL").fetchall():
+            nm = (r["name"] or "").upper().replace(" ", "")
+            if "ST" in nm:
+                out.add(clean_code(r["code"]))
+        return out
+    return _read(_f, set()) or set()
+
+
+def save_market_breadth(row, source="em_clist"):
+    """写入每日涨跌家数（沪深京全部 A 股口径）
+
+    row = {"date": "2026-10-13", "up": 2909, "down": 2486, "flat": 167,
+           "total": 5923, "suspended": 361}
+    """
+    if not row or not (row.get("date") or row.get("trade_date")):
+        return 0
+
+    def _f(conn):
+        cur = conn.cursor()
+        sql = _upsert("market_breadth",
+                      ["trade_date", "up_count", "down_count", "flat_count",
+                       "total_count", "suspended", "source", "collected_at"],
+                      ["trade_date"],
+                      ["up_count", "down_count", "flat_count", "total_count",
+                       "suspended", "source", "collected_at"])
+        cur.execute(sql, (str(row.get("date") or row.get("trade_date")),
+                          _int(row.get("up")), _int(row.get("down")),
+                          _int(row.get("flat")), _int(row.get("total")),
+                          _int(row.get("suspended")), source, now_str()))
+        return 1
+    return _write(_f)
+
+
+def market_breadth_map(start=None, end=None):
+    """读涨跌家数历史 -> {trade_date: {"up","down","flat","total","suspended"}}"""
+
+    def _f(conn):
+        sql = ("SELECT `trade_date`,`up_count`,`down_count`,`flat_count`,`total_count`,"
+               "`suspended` FROM `market_breadth`")
+        cond, args = [], []
+        if start:
+            cond.append("`trade_date`>=?"); args.append(start)
+        if end:
+            cond.append("`trade_date`<=?"); args.append(end)
+        if cond:
+            sql += " WHERE " + " AND ".join(cond)
+        out = {}
+        for r in conn.execute(sql, tuple(args)).fetchall():
+            out[r["trade_date"]] = {"up": r["up_count"], "down": r["down_count"],
+                                    "flat": r["flat_count"], "total": r["total_count"],
+                                    "suspended": r["suspended"]}
+        return out
+    return _read(_f, {}) or {}
+
+
 def save_turnover_batch(rows, source="em_index"):
     """写入每日两市成交额（单位：亿元）
 
@@ -2199,17 +2280,20 @@ def market_turnover_map(start=None, end=None):
 
 
 def daily_market_stats(max_days=45, prefer_screening=True):
-    """按日统计「行情评分 + 涨跌家数」（用本地日K，规则与动态选股完全一致）
+    """按日统计「行情评分 + 涨跌家数」
 
-    · 上涨/下跌/平 家数：按当日 change_pct 统计
-    · 行情评分 = 封板率 = 封住涨停 / 入选池
-        - 入选池：昨日未触及涨停价 且 今日盘中最高涨幅 > 9%（沪深主板非ST 口径）
+    · 涨跌家数：**沪深京全部 A 股**口径（含 ST / 创业板 / 科创板 / 北交所），与同花顺
+      「涨跌分布」一致；优先用 market_breadth 表（实时抓取，最准确），没有则用本地日K统计
+    · 行情评分 = 封板率 = 封住涨停 / 入选池（**沪深主板非ST**口径，与「动态选股」逐位一致）
+        - 入选池：昨日未触及涨停价 且 今日盘中最高涨幅 > 9%
         - 封住：今日收盘 ≥ 今日涨停价（前收盘×1.1，四舍五入到分）
       （该反推法已与真实选股结果逐位核对一致）
     · 若该日有真实选股结果，直接用它的 sealedRate（更权威）
 
-    返回 [{date, up, down, flat, final, sealed, score, src}]（升序，最多 max_days 天）
+    返回 [{date, up, down, flat, final, sealed, score, src, breadth_src,
+            amount, amount_prev, amount_diff}]（升序，最多 max_days 天）
     """
+    _MAIN_PREFIX = ("600", "601", "603", "605", "000", "001", "002", "003")
     from decimal import Decimal, ROUND_HALF_UP
     EPS = 0.001
 
@@ -2235,6 +2319,25 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                 "SELECT stock_code, trade_date, high, close, change_pct FROM daily_kline "
                 "WHERE trade_date >= ?", (start,)).fetchall():
             K.setdefault(r["stock_code"], {})[r["trade_date"]] = r
+        # ST 名单（评分口径 = 沪深主板非ST，与「动态选股」一致）
+        st_codes = set()
+        try:
+            for r in conn.execute(
+                    "SELECT `code`,`name` FROM `stock` WHERE `name` IS NOT NULL").fetchall():
+                nm = (r["name"] or "").upper().replace(" ", "")
+                if "ST" in nm:
+                    st_codes.add(clean_code(r["code"]))
+        except Exception:
+            st_codes = set()
+        # 涨跌家数（沪深京全部 A 股口径，优先用 market_breadth 的实时抓取值）
+        bmap = {}
+        try:
+            for r in conn.execute(
+                    "SELECT `trade_date`,`up_count`,`down_count`,`flat_count` "
+                    "FROM `market_breadth`").fetchall():
+                bmap[r["trade_date"]] = (r["up_count"], r["down_count"], r["flat_count"])
+        except Exception:
+            bmap = {}
         # 两市成交额（亿元）：用于「成交额总计 / 较上一日」
         tmap = {}
         try:
@@ -2275,6 +2378,10 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                         down += 1
                     else:
                         flat += 1
+                if not code_.startswith(_MAIN_PREFIX):      # 评分只认沪深主板
+                    continue
+                if code_ in st_codes:                       # 且非 ST（与动态选股一致）
+                    continue
                 r1, r2r = m.get(d1), m.get(d2)
                 if not r1 or not r2r:
                     continue
@@ -2289,6 +2396,10 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                         sealed += 1
             if final <= 0 and up + down + flat <= 0:
                 continue
+            bsrc = "kline"
+            if d in bmap and bmap[d][0] is not None:
+                up, down, flat = bmap[d][0], bmap[d][1], bmap[d][2]
+                bsrc = "breadth"
             score = round(sealed / final * 100, 1) if final else None
             src = "kline"
             if d in real:
@@ -2300,7 +2411,8 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                     if (amt is not None and prev_amt is not None) else None)
             out.append({"date": d, "up": up, "down": down, "flat": flat,
                         "final": final, "sealed": sealed, "score": score, "src": src,
-                        "amount": amt, "amount_prev": prev_amt, "amount_diff": diff})
+                        "breadth_src": bsrc, "amount": amt, "amount_prev": prev_amt,
+                        "amount_diff": diff})
         return out[-int(max_days):]
     return _read(_f, []) or []
 

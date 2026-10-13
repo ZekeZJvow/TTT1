@@ -398,6 +398,7 @@ def run_light_job(name="morning", target_date=None, progress=None):
     step = _make_step(result, progress)
 
     step("hotlist", lambda: _fetch_hotlist(target))
+    step("breadth", lambda: _fetch_breadth(target))
 
     integrity = {}
 
@@ -435,6 +436,15 @@ def _fetch_turnover():
     return _mt.sync_recent(10)
 
 
+def _fetch_breadth(target):
+    """涨跌家数落库（沪深京全部 A 股口径 —— 与同花顺「涨跌分布」一致）"""
+    import market_breadth as _mb
+    row = _mb.sync_today(target)
+    if not row:
+        return "error: 涨跌家数抓取失败"
+    return "涨%d 跌%d 平%d（共%d只）" % (row["up"], row["down"], row["flat"], row["total"])
+
+
 def run_daily_job(target_date=None, progress=None, name="close"):
     import server as _server
     import market_db as _mdb
@@ -450,6 +460,7 @@ def run_daily_job(target_date=None, progress=None, name="close"):
     step("hotlist", lambda: _fetch_hotlist(target))
     step("screen", lambda: _fetch_scan(target))
     step("turnover", _fetch_turnover)
+    step("breadth", lambda: _fetch_breadth(target))
     step("themes", lambda: _fetch_themes(target))
 
     # 1) 第一次完整性校验
