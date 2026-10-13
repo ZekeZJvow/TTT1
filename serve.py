@@ -30,10 +30,12 @@ _dist_db = os.path.join(HERE, "dist", "data", "market.db")
 if os.path.isfile(_dist_db):
     os.environ.setdefault("MARKET_DB", _dist_db)
 
-from server import app  # noqa: E402
+from server import app, run_server  # noqa: E402
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
     print("\n===== 服务启动 %s  http://localhost:%d =====" % (
         __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S"), port))
-    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False, threaded=True)
+    # 双栈监听（IPv4 + ::1），并把行情统计预热，保证 localhost 打开即快
+    run_server(host="0.0.0.0", port=port, debug=False,
+               use_reloader=False, threaded=True)

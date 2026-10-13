@@ -393,12 +393,8 @@
                     <button class="mini-btn" onclick="loadMarketHistory(true)">↻ 刷新</button>
                 </div>
                 <div class="date-row">
-                    <span class="date-row-label">日期范围：</span>
-                    <div class="date-range-box">
-                        <input type="date" id="mh-start" onchange="onMhRangeChange()" title="开始日期">
-                        <span class="range-sep">~</span>
-                        <input type="date" id="mh-end" onchange="onMhRangeChange()" title="结束日期">
-                    </div>
+                    <span class="date-row-label">看某个月：</span>
+                    <div class="mh-months" id="mh-months"></div>
                     <button class="mini-btn" onclick="mhQuickRange(30)">近30天</button>
                     <button class="mini-btn" onclick="mhQuickRange(60)">近60天</button>
                     <button class="mini-btn" onclick="mhResetRange()">全部</button>

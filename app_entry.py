@@ -151,8 +151,8 @@ def main():
     threading.Thread(target=_open_browser, daemon=True).start()
 
     try:
-        server.app.run(host=HOST, port=PORT,
-                       debug=False, use_reloader=False, threaded=True)
+        server.run_server(host=HOST, port=PORT,
+                          debug=False, use_reloader=False, threaded=True)
     except OSError as e:
         # 如果端口上已经是"本程序"，说明重复启动了 —— 直接开浏览器然后退出
         if _already_running():

@@ -2288,12 +2288,59 @@ let mhLoaded = false;
 
 let mhStart = '';      // 日期范围（留空 = 不限）
 let mhEnd = '';
+let mhMonth = null;    // 当前选中的月份（1~12；null = 未选）
+let mhLatest = '';     // 最新有数据的交易日（用于确定年份）
+let mhHasMonths = {};  // 有数据的月份集合（默认全景视图下统计）
 
-function onMhRangeChange() {
-    const s = document.getElementById('mh-start');
-    const e = document.getElementById('mh-end');
-    mhStart = (s && s.value) || '';
-    mhEnd = (e && e.value) || '';
+function mhPad(v) { return (v < 10 ? '0' : '') + v; }
+
+function mhYear() {
+    // 用「最新有数据的交易日」所在年份
+    return mhLatest ? Number(mhLatest.slice(0, 4)) : new Date().getFullYear();
+}
+
+function mhLastDay(y, m) {
+    // m: 1~12 -> 该月最后一天
+    return new Date(y, m, 0).getDate();
+}
+
+function mhBuildMonths() {
+    const box = document.getElementById('mh-months');
+    if (!box || box.childElementCount) return;
+    let html = '';
+    for (let k = 1; k <= 12; k++) {
+        html += '<button class="mini-btn mh-month-btn" id="mh-m' + k + '"' +
+            ' onclick="mhPickMonth(' + k + ')">' + k + '月</button>';
+    }
+    box.innerHTML = html;
+}
+
+function mhSyncMonthUI() {
+    const y = mhYear();
+    for (let k = 1; k <= 12; k++) {
+        const el = document.getElementById('mh-m' + k);
+        if (!el) continue;
+        const has = !!mhHasMonths[k];
+        el.classList.toggle('active', mhMonth === k);
+        el.disabled = !has;
+        el.classList.toggle('mh-month-empty', !has);
+        el.title = has ? (y + '年' + k + '月') : (y + '年' + k + '月（本地暂无数据）');
+    }
+}
+
+function mhPickMonth(k) {
+    mhBuildMonths();
+    if (mhMonth === k) {            // 再点一次 = 取消，回到默认（近 45 天）
+        mhMonth = null; mhStart = ''; mhEnd = '';
+        mhSyncMonthUI();
+        loadMarketHistory(true);
+        return;
+    }
+    const y = mhYear();
+    mhMonth = k;
+    mhStart = y + '-' + mhPad(k) + '-01';
+    mhEnd = y + '-' + mhPad(k) + '-' + mhPad(mhLastDay(y, k));
+    mhSyncMonthUI();
     loadMarketHistory(true);
 }
 
@@ -2304,28 +2351,25 @@ function mhQuickRange(n) {
         if (!last) return;
         const d = new Date(last + 'T00:00:00');
         d.setDate(d.getDate() - n);
-        const pad = function (v) { return (v < 10 ? '0' : '') + v; };
-        const st = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
-        const si = document.getElementById('mh-start');
-        const ei = document.getElementById('mh-end');
-        if (si) si.value = st;
-        if (ei) ei.value = last;
-        mhStart = st; mhEnd = last;
+        mhStart = d.getFullYear() + '-' + mhPad(d.getMonth() + 1) + '-' + mhPad(d.getDate());
+        mhEnd = last;
+        mhMonth = null;
+        mhLatest = last;
+        mhSyncMonthUI();
         loadMarketHistory(true);
     });
 }
 
 function mhResetRange() {
-    const si = document.getElementById('mh-start');
-    const ei = document.getElementById('mh-end');
-    if (si) si.value = '';
-    if (ei) ei.value = '';
-    mhStart = ''; mhEnd = '';
+    mhStart = ''; mhEnd = ''; mhMonth = null;
+    mhSyncMonthUI();
     loadMarketHistory(true);
 }
 
 async function loadMarketHistory(force) {
     if (mhLoaded && !force) return;
+    mhBuildMonths();
+    mhSyncMonthUI();
     const body = document.getElementById('mh-body');
     if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">正在统计…</td></tr>';
     let r;
@@ -2381,6 +2425,22 @@ function renderMarketHistory(rows) {
         return;
     }
     const last = rows[rows.length - 1];
+    if (last && last.date) {
+        mhLatest = last.date;
+    }
+    if (!mhStart && !mhEnd) {
+        // 默认全景视图 -> 记下哪些月份有数据（没数据的月份按钮置灰）
+        const has = {};
+        for (let i = 0; i < rows.length; i++) {
+            const m = Number(String(rows[i].date).slice(5, 7));
+            if (m) has[m] = true;
+        }
+        mhHasMonths = has;
+    }
+    if (last && last.date) {
+        mhBuildMonths();
+        mhSyncMonthUI();
+    }
     if (sum) {
         sum.innerHTML =
             '<span class="mh-item">最新交易日 <b>' + escHtml(last.date) + '</b></span>' +
@@ -2392,7 +2452,9 @@ function renderMarketHistory(rows) {
             '<span class="mh-item">较上一日 <b class="' + mhDiffCls(last.amount_diff) + '">' +
                 fmtMhDiff(last.amount_diff) + '</b></span>' +
             '<span class="mh-item dim">共 ' + rows.length + ' 个交易日' +
-                (mhStart || mhEnd ? '（' + (mhStart || '最早') + ' ~ ' + (mhEnd || '最新') + '）' : '') + '</span>';
+                (mhMonth ? '（' + mhYear() + '年' + mhMonth + '月）'
+                         : (mhStart || mhEnd ? '（' + (mhStart || '最早') + ' ~ ' + (mhEnd || '最新') + '）' : '')) +
+                '</span>';
     }
     if (body) {
         body.innerHTML = rows.slice().reverse().map(function (x) {

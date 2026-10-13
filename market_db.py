@@ -2201,7 +2201,10 @@ def save_market_breadth(row, source="em_clist"):
                           _int(row.get("flat")), _int(row.get("total")),
                           _int(row.get("suspended")), source, now_str()))
         return 1
-    return _write(_f)
+    n = _write(_f)
+    if n:
+        invalidate_market_stats()
+    return n
 
 
 def market_breadth_map(start=None, end=None):
@@ -2250,7 +2253,10 @@ def save_turnover_batch(rows, source="em_index"):
                               source, ts))
             n += 1
         return n
-    return _write(_f)
+    n = _write(_f)
+    if n:
+        invalidate_market_stats()
+    return n
 
 
 def market_turnover_map(start=None, end=None):
@@ -2279,8 +2285,12 @@ def market_turnover_map(start=None, end=None):
     return _read(_f, {}) or {}
 
 
+_STATS_CACHE = {"ts": 0.0, "n": 0, "rows": []}
+_STATS_TTL = 120.0         # 秒；结果缓存，避免每次请求都重算（写入入库时会主动清缓存）
+
+
 def daily_market_stats(max_days=45, prefer_screening=True):
-    """按日统计「行情评分 + 涨跌家数」
+    """按日统计「行情评分 + 涨跌家数」（带 30 秒缓存）
 
     · 涨跌家数：**沪深京全部 A 股**口径（含 ST / 创业板 / 科创板 / 北交所），与同花顺
       「涨跌分布」一致；优先用 market_breadth 表（实时抓取，最准确），没有则用本地日K统计
@@ -2293,7 +2303,27 @@ def daily_market_stats(max_days=45, prefer_screening=True):
     返回 [{date, up, down, flat, final, sealed, score, src, breadth_src,
             amount, amount_prev, amount_diff}]（升序，最多 max_days 天）
     """
-    _MAIN_PREFIX = ("600", "601", "603", "605", "000", "001", "002", "003")
+    n = int(max_days)
+    if prefer_screening:
+        c = _STATS_CACHE
+        if c["rows"] and c["n"] >= n and (time.time() - c["ts"]) < _STATS_TTL:
+            return c["rows"][-n:]
+    rows = _daily_market_stats_impl(n, prefer_screening)
+    if prefer_screening:
+        _STATS_CACHE["ts"] = time.time()
+        _STATS_CACHE["n"] = n
+        _STATS_CACHE["rows"] = rows
+    return rows
+
+
+def invalidate_market_stats():
+    """清空行情统计缓存（抓取入库后调用，保证页面立刻看到新数据）"""
+    _STATS_CACHE["ts"] = 0.0
+    _STATS_CACHE["n"] = 0
+    _STATS_CACHE["rows"] = []
+
+
+def _daily_market_stats_impl(max_days=45, prefer_screening=True):
     from decimal import Decimal, ROUND_HALF_UP
     EPS = 0.001
 
@@ -2305,7 +2335,6 @@ def daily_market_stats(max_days=45, prefer_screening=True):
 
     def _f(conn):
         # ① 先找出"完整"的交易日（当日有涨跌幅的股票数 >= 2000）
-        #    这样 d2/d1 一定落在完整日上，反推结果才可靠；残缺日也一并剔除
         all_need = [r["trade_date"] for r in conn.execute(
             "SELECT trade_date FROM daily_kline WHERE change_pct IS NOT NULL "
             "GROUP BY trade_date HAVING COUNT(*) >= 2000 "
@@ -2314,12 +2343,19 @@ def daily_market_stats(max_days=45, prefer_screening=True):
             return []
         all_need.sort()
         start = all_need[0]
-        K = {}
+
+        # ② 涨跌家数：交给 SQL 聚合（全市场，快）
+        agg = {}
         for r in conn.execute(
-                "SELECT stock_code, trade_date, high, close, change_pct FROM daily_kline "
-                "WHERE trade_date >= ?", (start,)).fetchall():
-            K.setdefault(r["stock_code"], {})[r["trade_date"]] = r
-        # ST 名单（评分口径 = 沪深主板非ST，与「动态选股」一致）
+                "SELECT `trade_date`, "
+                "SUM(CASE WHEN `change_pct` > 0 THEN 1 ELSE 0 END), "
+                "SUM(CASE WHEN `change_pct` < 0 THEN 1 ELSE 0 END), "
+                "SUM(CASE WHEN `change_pct` = 0 THEN 1 ELSE 0 END) "
+                "FROM `daily_kline` WHERE `trade_date` >= ? AND `change_pct` IS NOT NULL "
+                "GROUP BY `trade_date`", (start,)).fetchall():
+            agg[r[0]] = (int(r[1] or 0), int(r[2] or 0), int(r[3] or 0))
+
+        # ③ 封板率只算沪深主板（非ST）：只取主板日K，逐股遍历
         st_codes = set()
         try:
             for r in conn.execute(
@@ -2329,7 +2365,37 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                     st_codes.add(clean_code(r["code"]))
         except Exception:
             st_codes = set()
-        # 涨跌家数（沪深京全部 A 股口径，优先用 market_breadth 的实时抓取值）
+        pool = {}
+        for r in conn.execute(
+                "SELECT `stock_code`,`trade_date`,`high`,`close` FROM `daily_kline` "
+                "WHERE `trade_date` >= ? AND ("
+                "substr(`stock_code`,1,3) IN ('600','601','603','605',"
+                "'000','001','002','003'))", (start,)).fetchall():
+            pool.setdefault(r["stock_code"], {})[r["trade_date"]] = r
+
+        idx = {d: i for i, d in enumerate(all_need)}
+        finals, sealeds = {}, {}
+        for code_, m in pool.items():
+            if code_ in st_codes:                       # 非 ST（与动态选股一致）
+                continue
+            for d, r0 in m.items():
+                i = idx.get(d)
+                if i is None or i < 2:
+                    continue
+                r1, r2r = m.get(all_need[i - 1]), m.get(all_need[i - 2])
+                if not r1 or not r2r:
+                    continue
+                c1, c2 = r1["close"], r2r["close"]
+                if not c1 or not c2 or not r0["high"] or r1["high"] is None:
+                    continue
+                if r1["high"] >= r2(c2 * 1.1) - EPS:    # 昨日触及涨停 -> 剔除
+                    continue
+                if (r0["high"] - c1) / c1 > 0.09:       # 今日盘中冲高 > 9%
+                    finals[d] = finals.get(d, 0) + 1
+                    if r0["close"] is not None and r0["close"] >= r2(c1 * 1.1) - EPS:
+                        sealeds[d] = sealeds.get(d, 0) + 1
+
+        # ④ 涨跌家数（实时抓取值优先）与两市成交额
         bmap = {}
         try:
             for r in conn.execute(
@@ -2338,7 +2404,6 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                 bmap[r["trade_date"]] = (r["up_count"], r["down_count"], r["flat_count"])
         except Exception:
             bmap = {}
-        # 两市成交额（亿元）：用于「成交额总计 / 较上一日」
         tmap = {}
         try:
             for r in conn.execute(
@@ -2347,53 +2412,25 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                     tmap[r["trade_date"]] = float(r["amount"])
         except Exception:
             tmap = {}
-        out = []
+
+        # ⑤ 真实选股结果（更权威）
         real = {}
         if prefer_screening:
             try:
                 for r in conn.execute("SELECT target_date, payload_json FROM screening_run").fetchall():
                     try:
-                        d = json.loads(r["payload_json"])
-                        if d.get("success") and d.get("sealedRate") is not None:
-                            real[r["target_date"]] = float(d["sealedRate"])
+                        dd = json.loads(r["payload_json"])
+                        if dd.get("success") and dd.get("sealedRate") is not None:
+                            real[r["target_date"]] = float(dd["sealedRate"])
                     except Exception:
                         pass
             except Exception:
                 real = {}
-        for i, d in enumerate(all_need):
-            if i < 2:
-                continue
-            d2, d1 = all_need[i - 2], all_need[i - 1]
-            up = down = flat = 0
-            final = sealed = 0
-            for code_, m in K.items():
-                r0 = m.get(d)
-                if not r0:
-                    continue
-                ch = r0["change_pct"]
-                if ch is not None:
-                    if ch > 0:
-                        up += 1
-                    elif ch < 0:
-                        down += 1
-                    else:
-                        flat += 1
-                if not code_.startswith(_MAIN_PREFIX):      # 评分只认沪深主板
-                    continue
-                if code_ in st_codes:                       # 且非 ST（与动态选股一致）
-                    continue
-                r1, r2r = m.get(d1), m.get(d2)
-                if not r1 or not r2r:
-                    continue
-                c1, c2 = r1["close"], r2r["close"]
-                if not c1 or not c2 or not r0["high"] or r1["high"] is None:
-                    continue
-                if r1["high"] >= r2(c2 * 1.1) - EPS:          # 昨日触及涨停 -> 剔除
-                    continue
-                if (r0["high"] - c1) / c1 > 0.09:             # 今日盘中冲高 > 9%
-                    final += 1
-                    if r0["close"] is not None and r0["close"] >= r2(c1 * 1.1) - EPS:
-                        sealed += 1
+
+        out = []
+        for d in all_need[2:]:
+            up, down, flat = agg.get(d, (0, 0, 0))
+            final, sealed = finals.get(d, 0), sealeds.get(d, 0)
             if final <= 0 and up + down + flat <= 0:
                 continue
             bsrc = "kline"
@@ -2406,6 +2443,7 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                 score = round(real[d], 1)
                 src = "screening"
             amt = tmap.get(d)
+            i = idx[d]
             prev_amt = tmap.get(all_need[i - 1]) if i >= 1 else None
             diff = (round(amt - prev_amt, 2)
                     if (amt is not None and prev_amt is not None) else None)

@@ -923,13 +923,16 @@ def market_history_api():
     start = (request.args.get("start") or "").strip()
     end = (request.args.get("end") or "").strip()
     try:
-        rows = _mdb.daily_market_stats(120 if (start or end) else days)
+        # 统一按 120 天算一次（内部有 30 秒缓存），再按区间 / 天数裁剪
+        rows = _mdb.daily_market_stats(120)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
     if start:
         rows = [x for x in rows if x["date"] >= start]
     if end:
         rows = [x for x in rows if x["date"] <= end]
+    if not (start or end):
+        rows = rows[-days:]
     return jsonify({"success": True, "days": days, "start": start, "end": end,
                     "rows": rows, "count": len(rows)})
 
@@ -1662,6 +1665,43 @@ def db_stats_api():
         return jsonify({"success": True, "stats": _mdb.stats()})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+def run_server(host="0.0.0.0", port=5000, **kw):
+    """启动服务：IPv4 主监听 + IPv6(::1) 备用监听
+
+    浏览器用 http://localhost:5000 访问时，Windows 会先把 localhost 解析成 ::1；
+    若只监听 0.0.0.0，每个请求都要先等 ::1 连接超时（本机约 2 秒）才回落 IPv4。
+    这里额外监听 ::1，两条路都通，打开页面 / 点击按钮就不用干等了。
+    """
+    import threading
+    try:
+        from werkzeug.serving import make_server
+
+        def _serve_v6():
+            try:
+                srv = make_server("::1", port, app, threaded=kw.get("threaded", True))
+                srv.serve_forever()
+            except Exception:
+                pass            # 不支持 IPv6 / 端口被占 -> 忽略，不影响 IPv4 监听
+        threading.Thread(target=_serve_v6, name="ipv6-listener", daemon=True).start()
+    except Exception:
+        pass
+
+    def _prewarm():
+        """后台预热行情统计（行情评分走势），首次打开就不用等"""
+        try:
+            time.sleep(3)
+            import market_db as _m
+            _m.daily_market_stats(120)
+        except Exception:
+            pass
+    try:
+        threading.Thread(target=_prewarm, name="stats-prewarm", daemon=True).start()
+    except Exception:
+        pass
+
+    app.run(host=host, port=port, **kw)
 
 
 # ---- 启动每日定时抓取入库（AUTO_FETCH_ENABLED=0 可关闭）----

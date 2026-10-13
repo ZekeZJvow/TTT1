@@ -1174,6 +1174,15 @@ body {
     justify-content: center; margin-bottom: 12px; font-size: 13px; color: #b0b0b0;
 }
 .date-row-label { color: #9aa0a6; }
+.mh-months { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.mh-month-btn { padding: 5px 11px; border-radius: 8px; font-size: .8rem; }
+.mh-month-btn.active {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    border-color: #3498db; color: #fff; font-weight: 600;
+}
+.mh-month-btn.active:hover { background: linear-gradient(135deg, #3498db, #2980b9); color: #fff; }
+.mh-month-btn.mh-month-empty { opacity: .35; cursor: not-allowed; }
+.mh-month-btn.mh-month-empty:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.16); color: #c8c8c8; }
 #hotlist-date, #theme-date {
     background: rgba(0, 0, 0, 0.3); color: #e6e8ea;
     border: 1px solid rgba(255, 255, 255, 0.16);
