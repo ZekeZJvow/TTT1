@@ -912,6 +912,21 @@ def screen_report():
     return _screener.render_report_html(res), 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
+@app.route("/api/market-history")
+def market_history_api():
+    """每日行情评分 + 涨跌家数（近 N 天，默认 45 天）"""
+    try:
+        days = int(request.args.get("days", 45))
+    except Exception:
+        days = 45
+    days = max(5, min(days, 120))
+    try:
+        rows = _mdb.daily_market_stats(days)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "days": days, "rows": rows, "count": len(rows)})
+
+
 @app.route("/api/market-score")
 def market_score_api():
     """今日行情评分（= 封板率）。只读缓存/本地库，**不触发扫描**。

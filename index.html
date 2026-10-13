@@ -26,6 +26,7 @@
             <button id="mode-screen" class="mode-btn" onclick="switchMode('screen', event)">🎯 动态选股</button>
             <button id="mode-theme" class="mode-btn" onclick="switchMode('theme', event)">🔥 当前题材热度</button>
         <button id="mode-multi" class="mode-btn" onclick="switchMode('multi', event)">📅 题材多日对照</button>
+        <button id="mode-market" class="mode-btn" onclick="switchMode('market', event)">📈 行情评分走势</button>
             <!-- 数据管理模块：按需求暂时关闭（不在页面显示）。要恢复：删掉下面这行的 style="display:none" -->
         <button id="mode-db" class="mode-btn" style="display:none" onclick="switchMode('db', event)">🗄️ 数据管理</button>
         </nav>
@@ -369,6 +370,41 @@
                     <table class="stock-table multi-table">
                         <thead id="multi-thead"></thead>
                         <tbody id="multi-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ 面板六：行情评分走势 ============ -->
+        <section id="panel-market" class="panel hidden">
+            <div class="screen-intro">
+                <h2>行情评分走势 · 每日涨跌家数</h2>
+                <p class="screen-desc">
+                    把每天的两项数据放在一起看：<b>行情评分</b>（= 当日封板率）与 <b>上涨 / 下跌家数</b>。
+                    行情评分由本地日K按「动态选股」同一套规则反推（已与真实选股结果逐位核对一致）；
+                    涨跌家数为<b>沪深主板</b>口径。数据每天自动积累，可回看历史。
+                </p>
+            </div>
+            <div class="hot-themes-box">
+                <div class="hot-themes-head">
+                    <h3>📈 最近走势</h3>
+                    <button class="mini-btn" onclick="loadMarketHistory(true)">↻ 刷新</button>
+                </div>
+                <div id="mh-summary" class="mh-summary"></div>
+                <div id="mh-chart" style="width:100%;height:420px;"></div>
+                <div class="table-container" style="margin-top:14px">
+                    <table class="stock-table mh-table">
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th class="num">行情评分</th>
+                                <th class="num">上涨家数</th>
+                                <th class="num">下跌家数</th>
+                                <th class="num">平盘</th>
+                                <th class="num">涨跌比</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mh-body"></tbody>
                     </table>
                 </div>
             </div>

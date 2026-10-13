@@ -1352,4 +1352,9 @@ body {
     .header .header-text { text-align: center; }
     .market-score .ms-value { font-size: 2.2rem; }
 }
+/* ---------- 模块5：行情评分走势 ---------- */
+.mh-summary { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; margin: 4px 0 10px; font-size: .9rem; color: #b0b0b0; }
+.mh-summary .mh-item b { font-size: 1.15rem; margin-left: 4px; }
+.mh-table td, .mh-table th { white-space: nowrap; }
+.mh-table td.num.mid { color: #f39c12; }
 

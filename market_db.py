@@ -2142,6 +2142,99 @@ def hotlist_days_summary(start, end):
     }
 
 
+def daily_market_stats(max_days=45, prefer_screening=True):
+    """按日统计「行情评分 + 涨跌家数」（用本地日K，规则与动态选股完全一致）
+
+    · 上涨/下跌/平 家数：按当日 change_pct 统计
+    · 行情评分 = 封板率 = 封住涨停 / 入选池
+        - 入选池：昨日未触及涨停价 且 今日盘中最高涨幅 > 9%（沪深主板非ST 口径）
+        - 封住：今日收盘 ≥ 今日涨停价（前收盘×1.1，四舍五入到分）
+      （该反推法已与真实选股结果逐位核对一致）
+    · 若该日有真实选股结果，直接用它的 sealedRate（更权威）
+
+    返回 [{date, up, down, flat, final, sealed, score, src}]（升序，最多 max_days 天）
+    """
+    from decimal import Decimal, ROUND_HALF_UP
+    EPS = 0.001
+
+    def r2(v):
+        try:
+            return float(Decimal(str(v)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+        except Exception:
+            return v
+
+    def _f(conn):
+        # ① 先找出"完整"的交易日（当日有涨跌幅的股票数 >= 2000）
+        #    这样 d2/d1 一定落在完整日上，反推结果才可靠；残缺日也一并剔除
+        all_need = [r["trade_date"] for r in conn.execute(
+            "SELECT trade_date FROM daily_kline WHERE change_pct IS NOT NULL "
+            "GROUP BY trade_date HAVING COUNT(*) >= 2000 "
+            "ORDER BY trade_date DESC LIMIT ?", (int(max_days) + 2,)).fetchall()]
+        if len(all_need) < 3:
+            return []
+        all_need.sort()
+        start = all_need[0]
+        K = {}
+        for r in conn.execute(
+                "SELECT stock_code, trade_date, high, close, change_pct FROM daily_kline "
+                "WHERE trade_date >= ?", (start,)).fetchall():
+            K.setdefault(r["stock_code"], {})[r["trade_date"]] = r
+        out = []
+        real = {}
+        if prefer_screening:
+            try:
+                for r in conn.execute("SELECT target_date, payload_json FROM screening_run").fetchall():
+                    try:
+                        d = json.loads(r["payload_json"])
+                        if d.get("success") and d.get("sealedRate") is not None:
+                            real[r["target_date"]] = float(d["sealedRate"])
+                    except Exception:
+                        pass
+            except Exception:
+                real = {}
+        for i, d in enumerate(all_need):
+            if i < 2:
+                continue
+            d2, d1 = all_need[i - 2], all_need[i - 1]
+            up = down = flat = 0
+            final = sealed = 0
+            for code_, m in K.items():
+                r0 = m.get(d)
+                if not r0:
+                    continue
+                ch = r0["change_pct"]
+                if ch is not None:
+                    if ch > 0:
+                        up += 1
+                    elif ch < 0:
+                        down += 1
+                    else:
+                        flat += 1
+                r1, r2r = m.get(d1), m.get(d2)
+                if not r1 or not r2r:
+                    continue
+                c1, c2 = r1["close"], r2r["close"]
+                if not c1 or not c2 or not r0["high"] or r1["high"] is None:
+                    continue
+                if r1["high"] >= r2(c2 * 1.1) - EPS:          # 昨日触及涨停 -> 剔除
+                    continue
+                if (r0["high"] - c1) / c1 > 0.09:             # 今日盘中冲高 > 9%
+                    final += 1
+                    if r0["close"] is not None and r0["close"] >= r2(c1 * 1.1) - EPS:
+                        sealed += 1
+            if final <= 0 and up + down + flat <= 0:
+                continue
+            score = round(sealed / final * 100, 1) if final else None
+            src = "kline"
+            if d in real:
+                score = round(real[d], 1)
+                src = "screening"
+            out.append({"date": d, "up": up, "down": down, "flat": flat,
+                        "final": final, "sealed": sealed, "score": score, "src": src})
+        return out[-int(max_days):]
+    return _read(_f, []) or []
+
+
 def hotlist_streaks(trade_date, top_n=30, max_lookback=60):
     """计算「连续上榜天数」。
 

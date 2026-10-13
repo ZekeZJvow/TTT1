@@ -753,9 +753,11 @@ function switchMode(mode, event) {
     document.getElementById('panel-theme').classList.toggle('hidden', mode !== 'theme');
     document.getElementById('panel-db').classList.toggle('hidden', mode !== 'db');
     document.getElementById('panel-multi').classList.toggle('hidden', mode !== 'multi');
+    document.getElementById('panel-market').classList.toggle('hidden', mode !== 'market');
     if (mode === 'screen') ensureScreenDate();
     if (mode === 'theme') { loadHotThemes(false); loadThemeDates(); }
     if (mode === 'multi') { loadMulti(false); }
+    if (mode === 'market') { loadMarketHistory(false); }
     if (mode === 'db') { loadDbOverview(); loadDbJob(); loadIntegrity(); loadNotifyStatus(); loadExportInfo(); loadDbCoverage(); loadBackfillMissing(); }
 }
 
@@ -2279,4 +2281,93 @@ function renderMultiByDate() {
     }
     tbody.innerHTML = html;
 }
+
+// ==================== 模块5：行情评分走势 ====================
+let mhChart = null;
+let mhLoaded = false;
+
+async function loadMarketHistory(force) {
+    if (mhLoaded && !force) return;
+    const body = document.getElementById('mh-body');
+    if (body) body.innerHTML = '<tr><td colspan="6" class="empty-cell">正在统计…</td></tr>';
+    let r;
+    try {
+        r = await (await fetch('/api/market-history?days=45')).json();
+    } catch (e) {
+        if (body) body.innerHTML = '<tr><td colspan="6" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
+        return;
+    }
+    if (!r || !r.success) {
+        if (body) body.innerHTML = '<tr><td colspan="6" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
+        return;
+    }
+    mhLoaded = true;
+    renderMarketHistory(r.rows || []);
+}
+
+function renderMarketHistory(rows) {
+    const body = document.getElementById('mh-body');
+    const sum = document.getElementById('mh-summary');
+    if (!rows.length) {
+        if (body) body.innerHTML = '<tr><td colspan="6" class="empty-cell">暂无数据</td></tr>';
+        return;
+    }
+    const last = rows[rows.length - 1];
+    if (sum) {
+        sum.innerHTML =
+            '<span class="mh-item">最新交易日 <b>' + escHtml(last.date) + '</b></span>' +
+            '<span class="mh-item">行情评分 <b class="' + (last.score == null ? '' : (last.score >= 70 ? 'up-strong' : (last.score >= 50 ? 'mid' : 'down'))) + '">' +
+                (last.score == null ? '--' : last.score) + '</b></span>' +
+            '<span class="mh-item">上涨 <b class="up">' + last.up + '</b></span>' +
+            '<span class="mh-item">下跌 <b class="down">' + last.down + '</b></span>' +
+            '<span class="mh-item dim">共 ' + rows.length + ' 个交易日</span>';
+    }
+    if (body) {
+        body.innerHTML = rows.slice().reverse().map(function (x) {
+            const cls = (x.score == null) ? 'dim' : (x.score >= 70 ? 'up-strong' : (x.score >= 50 ? 'mid' : 'down'));
+            const ratio = x.down ? (x.up / x.down).toFixed(2) : '—';
+            return '<tr>' +
+                '<td>' + escHtml(x.date) + '</td>' +
+                '<td class="num ' + cls + '">' + (x.score == null ? '—' : x.score) + '</td>' +
+                '<td class="num up">' + x.up + '</td>' +
+                '<td class="num down">' + x.down + '</td>' +
+                '<td class="num dim">' + x.flat + '</td>' +
+                '<td class="num dim">' + ratio + '</td>' +
+                '</tr>';
+        }).join('');
+    }
+    const box = document.getElementById('mh-chart');
+    if (!box) return;
+    if (!mhChart) mhChart = echarts.init(box);
+    mhChart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+            trigger: 'axis',
+            backgroundColor: 'rgba(26,26,46,0.95)', borderColor: '#444',
+            textStyle: { color: '#fff', fontSize: 13 }
+        },
+        legend: { data: ['行情评分', '上涨家数', '下跌家数'], textStyle: { color: '#a0a0a0' }, top: 4 },
+        grid: { left: 56, right: 64, top: 46, bottom: 58 },
+        xAxis: {
+            type: 'category', data: rows.map(function (x) { return x.date.slice(5); }),
+            axisLabel: { color: '#9aa0a6', fontSize: 11 }, axisLine: { lineStyle: { color: '#444' } }
+        },
+        yAxis: [
+            { type: 'value', name: '评分', min: 0, max: 100, nameTextStyle: { color: '#9aa0a6' },
+              axisLabel: { color: '#9aa0a6' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.06)' } } },
+            { type: 'value', name: '家数', nameTextStyle: { color: '#9aa0a6' },
+              axisLabel: { color: '#9aa0a6' }, splitLine: { show: false } }
+        ],
+        series: [
+            { name: '行情评分', type: 'line', yAxisIndex: 0, data: rows.map(function (x) { return x.score; }),
+              smooth: true, symbolSize: 6, connectNulls: true,
+              itemStyle: { color: '#f39c12' }, lineStyle: { width: 3 } },
+            { name: '上涨家数', type: 'bar', yAxisIndex: 1, data: rows.map(function (x) { return x.up; }),
+              itemStyle: { color: 'rgba(231,76,60,.62)' } },
+            { name: '下跌家数', type: 'bar', yAxisIndex: 1, data: rows.map(function (x) { return x.down; }),
+              itemStyle: { color: 'rgba(46,204,113,.62)' } }
+        ]
+    });
+}
+window.addEventListener('resize', function () { if (mhChart) mhChart.resize(); });
 
