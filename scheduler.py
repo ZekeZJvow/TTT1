@@ -26,6 +26,8 @@ from datetime import datetime
 _STARTED = False
 _THREAD = None
 _LAST_ATTEMPT = {}
+_LAST_INTRADAY = [0.0]      # 上一次盘中快照时间
+INTRADAY_GAP = 900          # 盘中每 15 分钟刷一次实时快照
 _COOLDOWN = 600
 _INTERVAL = 60
 
@@ -122,6 +124,30 @@ def _loop():
         time.sleep(_INTERVAL)
 
 
+def in_session(now=None):
+    """是否在盘中（9:35-11:30 / 13:00-14:57，周一~周五）"""
+    now = now or datetime.now()
+    if now.weekday() >= 5:
+        return False
+    hm = now.hour * 60 + now.minute
+    return (9 * 60 + 35 <= hm <= 11 * 60 + 30) or (13 * 60 <= hm <= 14 * 60 + 57)
+
+
+def maybe_intraday(now=None):
+    """盘中按间隔自动刷一次实时快照（不写正式数据，收盘后会被覆盖）"""
+    now = now or datetime.now()
+    if not in_session(now):
+        return False
+    if (time.time() - _LAST_INTRADAY[0]) < INTRADAY_GAP:
+        return False
+    _LAST_INTRADAY[0] = time.time()
+    try:
+        run_intraday_job()
+    except Exception as e:
+        _log("盘中快照失败: %s" % e)
+    return True
+
+
 def tick(now=None):
     now = now or datetime.now()
     if not enabled():
@@ -173,6 +199,7 @@ def tick(now=None):
         due.append(sc)
 
     if not due:
+        maybe_intraday(now)      # 盘中每 15 分钟刷一次实时快照
         return False
 
     # 有 full 到期 -> 只跑最晚的那个 full，其余记为 skip
@@ -399,6 +426,7 @@ def run_light_job(name="morning", target_date=None, progress=None):
 
     step("hotlist", lambda: _fetch_hotlist(target))
     step("breadth", lambda: _fetch_breadth(target))
+    step("intraday", lambda: run_intraday_job(target))
 
     integrity = {}
 
@@ -434,6 +462,25 @@ def _fetch_turnover():
     """两市成交额（沪市 + 深市）落库：收盘后先取实时，再用指数日K覆盖最近 10 天"""
     import market_turnover as _mt
     return _mt.sync_recent(10)
+
+
+def run_intraday_job(trade_date=None):
+    """盘中实时快照：一次抓全市场 -> 涨跌家数 + 成交额 + 盘中封板率"""
+    import realtime_snapshot as rs
+    t0 = time.time()
+    snap = rs.run()
+    if not snap:
+        msg = "盘中快照失败（抓不到行情）"
+    elif snap.get("skipped"):
+        msg = "跳过：%s" % snap.get("reason")
+    else:
+        msg = ("盘中快照 %s %s 涨%s 跌%s 平%s 评分%s(%s/%s) 成交额%.2f万亿 用时%.1fs"
+               % (snap.get("date"), snap.get("quote_time") or "", snap["up"], snap["down"],
+                  snap["flat"], snap["score"] if snap["score"] is not None else "—",
+                  snap.get("sealed"), snap.get("final"),
+                  (snap.get("amount_yi") or 0) / 10000.0, time.time() - t0))
+    log(msg)
+    return msg
 
 
 def _fetch_seal(target=None):

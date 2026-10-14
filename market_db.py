@@ -2378,13 +2378,15 @@ def compute_seal_stats(lookback_days=460, force=False, progress=None):
         pos = {d: i for i, d in enumerate(complete)}
 
         # ② 已算过的日子
-        have = set()
+        have = {}
         if not force:
             for r in conn.execute(
-                    "SELECT `trade_date` FROM `market_seal_stats` WHERE `trade_date` >= ?",
+                    "SELECT `trade_date`,`src` FROM `market_seal_stats` WHERE `trade_date` >= ?",
                     (since,)).fetchall():
-                have.add(str(r[0]))
-        todo = [d for d in complete if pos[d] >= 2 and (force or d not in have)]
+                have[str(r[0])] = (r[1] or "")
+        # 盘中数据（src=intraday）不算定稿，收盘后要重算覆盖
+        todo = [d for d in complete
+                if pos[d] >= 2 and (force or have.get(d, "") in ("", "intraday"))]
         if not todo:
             return 0
 
@@ -2446,6 +2448,33 @@ def compute_seal_stats(lookback_days=460, force=False, progress=None):
     if out:
         invalidate_market_stats()
     return out or 0
+
+
+def save_seal_intraday(row):
+    """写入「盘中」封板率（src=intraday）
+
+    盘中用「现价」代替收盘价算出的值；收盘后 compute_seal_stats 会重算并覆盖它
+    （src=intraday 视为"未定稿"）。
+    """
+    if not row or not row.get("date"):
+        return 0
+
+    def _f(conn):
+        conn.execute(
+            _upsert("market_seal_stats",
+                    ["trade_date", "up_count", "down_count", "flat_count",
+                     "final_count", "sealed_count", "score", "src", "computed_at"],
+                    ["trade_date"],
+                    ["up_count", "down_count", "flat_count", "final_count",
+                     "sealed_count", "score", "src", "computed_at"]),
+            (str(row["date"]), _int(row.get("up")), _int(row.get("down")),
+             _int(row.get("flat")), _int(row.get("final")), _int(row.get("sealed")),
+             _num(row.get("score")), "intraday", now_str()))
+        return 1
+    n = _write(_f)
+    if n:
+        invalidate_market_stats()
+    return n or 0
 
 
 def ensure_seal_stats_async(min_interval=600.0):

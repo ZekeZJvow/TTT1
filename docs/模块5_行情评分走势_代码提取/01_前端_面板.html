@@ -1,0 +1,45 @@
+<!-- ============ 面板六：行情评分走势 ============ -->
+        <section id="panel-market" class="panel hidden">
+            <div class="screen-intro">
+                <h2>行情评分走势 · 每日涨跌家数</h2>
+                <p class="screen-desc">
+                    把每天的两项数据放在一起看：<b>行情评分</b>（= 当日封板率）与 <b>上涨 / 下跌家数</b>。
+                    行情评分由本地日K按「动态选股」同一套规则反推（已与真实选股结果逐位核对一致）；
+                    涨跌家数为<b>沪深京全部 A 股</b>口径（含 ST / 创业板 / 科创板 / 北交所，与同花顺「涨跌分布」一致）；
+                    成交额总计为<b>沪深两市</b>口径（沪市 + 深市）。
+                    数据每天自动积累，可回看历史。
+                </p>
+            </div>
+            <div class="hot-themes-box">
+                <div class="hot-themes-head">
+                    <h3>📈 最近走势</h3>
+                    <button class="mini-btn" onclick="loadMarketHistory(true)">↻ 刷新</button>
+                </div>
+                <div class="date-row">
+                    <span class="date-row-label">看某个月：</span>
+                    <div class="mh-months" id="mh-months"></div>
+                    <button class="mini-btn" onclick="mhQuickRange(30)">近30天</button>
+                    <button class="mini-btn" onclick="mhQuickRange(60)">近60天</button>
+                    <button class="mini-btn" onclick="mhResetRange()">全部</button>
+                </div>
+                <div id="mh-summary" class="mh-summary"></div>
+                <div id="mh-chart" style="width:100%;height:420px;"></div>
+                <div class="table-container" style="margin-top:14px">
+                    <table class="stock-table mh-table">
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th class="num">行情评分</th>
+                                <th class="num">上涨家数</th>
+                                <th class="num">下跌家数</th>
+                                <th class="num">平盘</th>
+                                <th class="num">涨跌比</th>
+                                <th class="num">成交额总计</th>
+                                <th class="num">较上一日</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mh-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>

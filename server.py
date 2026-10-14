@@ -1197,6 +1197,44 @@ _JOB_FLAG = [False]
 _JOB_NAME = [""]
 
 
+@app.route("/api/market-intraday")
+def market_intraday_api():
+    """盘中实时快照：抓一次全市场（约 3~5 秒）-> 涨跌家数 + 成交额 + 盘中封板率
+
+    返回本次算出的结果；非交易时段（行情快照日期不是今天）会返回 stale=True，
+    不会污染正式数据。
+    """
+    try:
+        import realtime_snapshot as _rt
+    except Exception as e:
+        return jsonify({"success": False, "error": "realtime_snapshot 不可用: %s" % e}), 500
+    try:
+        snap = _rt.snapshot()
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    if not snap:
+        return jsonify({"success": False, "error": "抓不到实时行情（网络或数据源异常）"}), 502
+    today = datetime.now().strftime("%Y-%m-%d")
+    stale = (snap.get("date") != today)
+    saved = False
+    if not stale:
+        try:
+            _rt.save(snap)
+            saved = True
+        except Exception:
+            pass
+    return jsonify({"success": True, "stale": stale, "saved": saved,
+                    "date": snap.get("date"), "quote_time": snap.get("quote_time"),
+                    "up": snap["up"], "down": snap["down"], "flat": snap["flat"],
+                    "suspended": snap["susp"], "total": snap["total"],
+                    "amount_yi": snap.get("amount_yi"),
+                    "sh_yi": snap.get("sh_yi"), "sz_yi": snap.get("sz_yi"),
+                    "final": snap.get("final"), "sealed": snap.get("sealed"),
+                    "score": snap.get("score"), "elapsed": snap.get("elapsed"),
+                    "message": ("非交易时段：行情快照日期是 %s，未写入库里" % snap.get("date"))
+                               if stale else "已抓取并写入盘中实时数据"})
+
+
 @app.route("/api/db/run-job", methods=["POST"])
 def db_run_job_api():
     """手动触发"每日抓取入库"任务（后台执行，立即返回）"""

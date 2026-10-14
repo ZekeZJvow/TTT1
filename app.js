@@ -2368,6 +2368,26 @@ function mhResetRange() {
     loadMarketHistory(true);
 }
 
+function fetchIntraday() {
+    // 盘中实时：抓一次全市场快照（家数 + 成交额 + 盘中封板率）
+    const sum = document.getElementById('mh-summary');
+    if (sum) sum.innerHTML = '<span class="mh-item dim">正在抓取盘中实时数据…（约 3~5 秒）</span>';
+    fetch('/api/market-intraday').then(function (r) { return r.json(); }).then(function (r) {
+        if (!r || !r.success) {
+            if (sum) sum.innerHTML = '<span class="mh-item dim">抓取失败：' + escHtml((r && r.error) || '未知错误') + '</span>';
+            return;
+        }
+        if (r.stale) {
+            if (sum) sum.innerHTML = '<span class="mh-item dim">' + escHtml(r.message || '非交易时段') +
+                '（涨' + r.up + ' 跌' + r.down + '，来自 ' + escHtml(r.date || '') + '）</span>';
+            return;
+        }
+        setTimeout(function () { loadMarketHistory(true); }, 600);
+    }).catch(function () {
+        if (sum) sum.innerHTML = '<span class="mh-item dim">抓取请求失败，请稍后再试</span>';
+    });
+}
+
 async function loadMarketHistory(force) {
     if (mhLoaded && !force) return;
     mhBuildMonths();
@@ -2457,6 +2477,9 @@ function renderMarketHistory(rows) {
             '<span class="mh-item">成交额 <b class="up-strong">' + fmtMhAmount(last.amount) + '</b></span>' +
             '<span class="mh-item">较上一日 <b class="' + mhDiffCls(last.amount_diff) + '">' +
                 fmtMhDiff(last.amount_diff) + '</b></span>' +
+            (last.src === 'intraday'
+                ? '<span class="mh-item live-note">⏳ 盘中实时（未收盘）· 数值会随行情变动，收盘后自动替换为正式数据</span>'
+                : '') +
             '<span class="mh-item dim">共 ' + rows.length + ' 个交易日' +
                 (mhMonth ? '（' + mhYear() + '年' + mhMonth + '月）'
                          : (mhStart || mhEnd ? '（' + (mhStart || '最早') + ' ~ ' + (mhEnd || '最新') + '）' : '')) +
@@ -2467,7 +2490,8 @@ function renderMarketHistory(rows) {
             const cls = (x.score == null) ? 'dim' : (x.score >= 70 ? 'up-strong' : (x.score >= 50 ? 'mid' : 'down'));
             const ratio = x.down ? (x.up / x.down).toFixed(2) : '—';
             return '<tr>' +
-                '<td>' + escHtml(x.date) + '</td>' +
+                '<td>' + escHtml(x.date) +
+                    (x.src === 'intraday' ? ' <span class="mh-live">盘中</span>' : '') + '</td>' +
                 '<td class="num ' + cls + '">' + (x.score == null ? '—' : x.score) + '</td>' +
                 '<td class="num up">' + x.up + '</td>' +
                 '<td class="num down">' + x.down + '</td>' +

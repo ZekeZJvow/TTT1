@@ -1,0 +1,28 @@
+/* ---------- 模块5：行情评分走势 ---------- */
+.mh-summary { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; margin: 4px 0 10px; font-size: .9rem; color: #b0b0b0; }
+.mh-summary .mh-item b { font-size: 1.15rem; margin-left: 4px; }
+.mh-table td, .mh-table th { white-space: nowrap; }
+.mh-table td.num.mid { color: #f39c12; }
+.mh-table td.num.up, .mh-table td.num.up-strong { color: #ff5252; font-weight: 600; }
+.mh-table td.num.down { color: #2ecc71; }
+.mh-table td.num.dim { color: #8a8a8a; }
+.mh-summary .mh-item b.up, .mh-summary .mh-item b.up-strong { color: #ff5252; }
+.mh-summary .mh-item b.down { color: #2ecc71; }
+.mh-summary .mh-item b.mid { color: #f39c12; }
+.mh-summary .mh-item b.dim { color: #8a8a8a; }
+
+/* 月份按钮（位于日期行样式区） */
+.mh-months { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.mh-month-btn { padding: 5px 11px; border-radius: 8px; font-size: .8rem; }
+.mh-month-btn.active {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    border-color: #3498db; color: #fff; font-weight: 600;
+}
+.mh-month-btn.active:hover { background: linear-gradient(135deg, #3498db, #2980b9); color: #fff; }
+.mh-month-btn.mh-month-empty { opacity: .35; cursor: not-allowed; }
+.mh-month-btn.mh-month-empty:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.16); color: #c8c8c8; }
+#hotlist-date, #theme-date {
+    background: rgba(0, 0, 0, 0.3); color: #e6e8ea;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 7px; padding: 5px 9px; font-size: 12.5px;
+}
