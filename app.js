@@ -2487,12 +2487,23 @@ function renderMarketHistory(rows) {
             trigger: 'axis',
             backgroundColor: 'rgba(26,26,46,0.95)', borderColor: '#444',
             textStyle: { color: '#fff', fontSize: 13 },
+            // 让提示框以「竖向虚线」为中心：水平居中于鼠标，并夹紧在图表内
+            position: function (pt, params, dom, rect, size) {
+                const w = (size && size.contentSize && size.contentSize[0]) || 0;
+                const vw = (size && size.viewSize && size.viewSize[0]) || 0;
+                let left = pt[0] - w / 2;
+                const maxL = vw - w - 4;
+                if (left < 4) left = 4;
+                if (left > maxL) left = maxL;
+                return [left, 8];
+            },
             formatter: function (ps) {
                 if (!ps || !ps.length) return '';
                 const x = rows[ps[0].dataIndex] || {};
                 return '<b>' + escHtml(x.date || '') + '</b>' +
                     '<br>行情评分：' + (x.score == null ? '—' : x.score) +
-                    '<br>上涨家数：' + x.up + '　下跌家数：' + x.down +
+                    '<br>上涨家数：' + x.up +
+                    '<br>下跌家数：' + x.down +
                     '<br>成交额总计：' + fmtMhAmount(x.amount) +
                     '<br>较上一日：' + fmtMhDiff(x.amount_diff);
             }
@@ -2501,6 +2512,11 @@ function renderMarketHistory(rows) {
         grid: { left: 56, right: 64, top: 46, bottom: 58 },
         xAxis: {
             type: 'category', data: rows.map(function (x) { return x.date.slice(5); }),
+            // z 调高：把竖向虚线画在柱子上层，否则会被柱子压住、看着像"没对准"
+            axisPointer: {
+                z: 120, snap: true,
+                lineStyle: { color: 'rgba(255,255,255,0.8)', width: 1.2, type: 'dashed' }
+            },
             axisLabel: { color: '#9aa0a6', fontSize: 11 }, axisLine: { lineStyle: { color: '#444' } }
         },
         yAxis: [
