@@ -254,6 +254,7 @@ CREATE TABLE IF NOT EXISTS market_seal_stats (
   sealed_count INTEGER,               -- 其中封住涨停的
   score        REAL,                  -- 封板率 = sealed/final*100
   src          TEXT,
+  kline_rows   INTEGER,               -- 计算当天的日K行数（日K补齐后不一致 -> 自动重算）
   computed_at  TEXT
 );
 

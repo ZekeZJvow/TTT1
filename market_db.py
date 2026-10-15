@@ -610,6 +610,14 @@ def init_db(force=False):
                         # IF NOT EXISTS 之类的幂等错误忽略
                         if "exist" not in str(e).lower():
                             raise
+                # 老库补列（新装时 schema.sql 已含；重复 ALTER 的错误忽略）
+                for _sql in ("ALTER TABLE `market_seal_stats` ADD COLUMN `kline_rows` INTEGER",
+                             "ALTER TABLE `market_breadth` ADD COLUMN `total_count` INTEGER",
+                             "ALTER TABLE `market_breadth` ADD COLUMN `suspended` INTEGER"):
+                    try:
+                        conn.execute(_sql)
+                    except Exception:
+                        pass
                 conn.commit()
             finally:
                 conn.close()
@@ -2377,16 +2385,36 @@ def compute_seal_stats(lookback_days=460, force=False, progress=None):
             return 0
         pos = {d: i for i, d in enumerate(complete)}
 
-        # ② 已算过的日子
+        # ② 每天当前有多少条日K（日K覆盖度变了 -> 统计要重算）
+        counts = {}
+        for r in conn.execute(
+                "SELECT `trade_date`, COUNT(*) FROM `daily_kline` "
+                "WHERE `trade_date` >= ? AND `change_pct` IS NOT NULL "
+                "GROUP BY `trade_date`", (since,)).fetchall():
+            counts[str(r[0])] = int(r[1] or 0)
+
         have = {}
         if not force:
-            for r in conn.execute(
-                    "SELECT `trade_date`,`src` FROM `market_seal_stats` WHERE `trade_date` >= ?",
-                    (since,)).fetchall():
-                have[str(r[0])] = (r[1] or "")
-        # 盘中数据（src=intraday）不算定稿，收盘后要重算覆盖
-        todo = [d for d in complete
-                if pos[d] >= 2 and (force or have.get(d, "") in ("", "intraday"))]
+            try:
+                for r in conn.execute(
+                        "SELECT `trade_date`,`src`,`kline_rows` FROM `market_seal_stats` "
+                        "WHERE `trade_date` >= ?", (since,)).fetchall():
+                    have[str(r[0])] = (r[1] or "", int(r[2] or 0))
+            except Exception:                     # 老库还没补列
+                for r in conn.execute(
+                        "SELECT `trade_date`,`src` FROM `market_seal_stats` "
+                        "WHERE `trade_date` >= ?", (since,)).fetchall():
+                    have[str(r[0])] = (r[1] or "", 0)
+
+        def _need(d):
+            if pos[d] < 2:
+                return False
+            src, rows = have.get(d, ("", 0))
+            if src in ("", "intraday"):           # 没算过 / 盘中数据 -> 要算
+                return True
+            return rows != counts.get(d, 0)       # 日K行数变了 -> 统计过期，重算
+
+        todo = [d for d in complete if force or _need(d)]
         if not todo:
             return 0
 
@@ -2406,10 +2434,12 @@ def compute_seal_stats(lookback_days=460, force=False, progress=None):
                    "('600','601','603','605','000','001','002','003')")
         upsert = _upsert("market_seal_stats",
                          ["trade_date", "up_count", "down_count", "flat_count",
-                          "final_count", "sealed_count", "score", "src", "computed_at"],
+                          "final_count", "sealed_count", "score", "src", "kline_rows",
+                          "computed_at"],
                          ["trade_date"],
                          ["up_count", "down_count", "flat_count",
-                          "final_count", "sealed_count", "score", "src", "computed_at"])
+                          "final_count", "sealed_count", "score", "src", "kline_rows",
+                          "computed_at"])
         ts = now_str()
         for d in todo:
             i = pos[d]
@@ -2435,7 +2465,8 @@ def compute_seal_stats(lookback_days=460, force=False, progress=None):
             down = int(agg[1] or 0) if agg else 0
             flat = int(agg[2] or 0) if agg else 0
             score = round(sealed / final * 100, 1) if final else None
-            cur.execute(upsert, (d, up, down, flat, final, sealed, score, "kline", ts))
+            cur.execute(upsert, (d, up, down, flat, final, sealed, score, "kline",
+                                 counts.get(d, 0), ts))
             n_done[0] += 1
             if progress:
                 try:
