@@ -384,7 +384,7 @@
                     行情评分由本地日K按「动态选股」同一套规则反推（已与真实选股结果逐位核对一致）；
                     涨跌家数为<b>沪深京全部 A 股</b>口径（含 ST / 创业板 / 科创板 / 北交所，与同花顺「涨跌分布」一致）；
                     成交额总计为<b>沪深两市</b>口径（沪市 + 深市）。
-                    数据每天自动积累，可回看历史。
+                    数据每天自动积累，可回看历史（<b>年份</b>下拉框可跨年查看，月份按钮跟随所选年份）。
                     <b>盘中也能看</b>：点「🕐 抓今日实时」抓一次全市场实时行情（约 3~5 秒），
                     当天即出现一行标着「盘中」的数据 —— 涨跌家数与成交额是"此刻"的值，
                     行情评分用盘中最高价 + 现价算出（未收盘会变动，收盘后自动被正式数据覆盖）。
@@ -397,6 +397,8 @@
                     <button class="mini-btn live-btn" onclick="fetchIntraday()" title="盘中用：抓一次全市场实时行情（约3~5秒），当天就会显示"盘中"数据">🕐 抓今日实时</button>
                 </div>
                 <div class="date-row">
+                    <span class="date-row-label">年份：</span>
+                    <select id="mh-year" class="mh-year" onchange="mhPickYear(this.value)" title="按年筛选（选项只列出本地有数据的年份）"></select>
                     <span class="date-row-label">看某个月：</span>
                     <div class="mh-months" id="mh-months"></div>
                     <button class="mini-btn" onclick="mhQuickRange(30)">近30天</button>

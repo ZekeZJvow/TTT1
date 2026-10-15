@@ -59,6 +59,13 @@ def fetch_history(days=120):
     """
     sh = _em_index_amount(SECID_SH, days)
     sz = _em_index_amount(SECID_SZ, days)
+    if not sh and not sz:
+        # 东财不可用时用同花顺 CLI 兜底（口径一致，最近 5 个交易日已逐位核对）
+        try:
+            import ths_turnover
+            return ths_turnover.fetch_history(days)
+        except Exception:
+            return []
     rows = []
     for d in sorted(set(sh) | set(sz)):
         a, b = sh.get(d), sz.get(d)

@@ -2289,6 +2289,7 @@ let mhLoaded = false;
 let mhStart = '';      // 日期范围（留空 = 不限）
 let mhEnd = '';
 let mhMonth = null;    // 当前选中的月份（1~12；null = 未选）
+let mhYearSel = '';    // 当前选中的年份（'' = 不限）
 let mhLatest = '';     // 最新有数据的交易日（用于确定年份）
 let mhHasMonths = {};   // 有数据的月份集合（默认全景视图下统计，兜底用）
 let mhMonthsAvail = null;  // 服务端返回的「有数据的月份」（YYYY-MM）
@@ -2296,8 +2297,43 @@ let mhMonthsAvail = null;  // 服务端返回的「有数据的月份」（YYYY-
 function mhPad(v) { return (v < 10 ? '0' : '') + v; }
 
 function mhYear() {
-    // 用「最新有数据的交易日」所在年份
+    // 月份按钮作用在哪个年份：优先用户选的年份，否则用最新有数据的年份
+    if (mhYearSel) return Number(mhYearSel);
     return mhLatest ? Number(mhLatest.slice(0, 4)) : new Date().getFullYear();
+}
+
+function mhYears() {
+    // 本地有数据的年份（从接口返回的月份列表推导），倒序
+    const ys = {};
+    if (mhMonthsAvail) {
+        Object.keys(mhMonthsAvail).forEach(function (m) { ys[String(m).slice(0, 4)] = true; });
+    }
+    if (mhLatest) ys[String(mhLatest).slice(0, 4)] = true;
+    return Object.keys(ys).sort().reverse();
+}
+
+function mhBuildYears() {
+    const sel = document.getElementById('mh-year');
+    if (!sel) return;
+    const years = mhYears();
+    sel.innerHTML = '<option value="">不限</option>' +
+        years.map(function (y) { return '<option value="' + escHtml(y) + '">' + escHtml(y) + '年</option>'; }).join('');
+    sel.value = (mhYearSel && years.indexOf(mhYearSel) >= 0) ? mhYearSel : '';
+}
+
+function mhPickYear(y) {
+    // 选年份 = 看那一整年；选「不限」= 回到默认（最近 45 天）
+    mhYearSel = (y || '').trim();
+    mhMonth = null;
+    if (mhYearSel) {
+        mhStart = mhYearSel + '-01-01';
+        mhEnd = mhYearSel + '-12-31';
+    } else {
+        mhStart = ''; mhEnd = '';
+    }
+    mhBuildYears();
+    mhSyncMonthUI();
+    loadMarketHistory(true);
 }
 
 function mhLastDay(y, m) {
@@ -2328,17 +2364,26 @@ function mhSyncMonthUI() {
         el.classList.toggle('mh-month-empty', !has);
         el.title = has ? (y + '年' + k + '月') : (y + '年' + k + '月（本地暂无数据，可跑历史补齐）');
     }
+    const sel = document.getElementById('mh-year');
+    if (sel && sel.value !== (mhYearSel || '')) sel.value = mhYearSel || '';
 }
 
 function mhPickMonth(k) {
     mhBuildMonths();
-    if (mhMonth === k) {            // 再点一次 = 取消，回到默认（近 45 天）
-        mhMonth = null; mhStart = ''; mhEnd = '';
+    if (mhMonth === k) {            // 再点一次 = 取消，回到该年份整年
+        mhMonth = null;
+        if (mhYearSel) {
+            mhStart = mhYearSel + '-01-01';
+            mhEnd = mhYearSel + '-12-31';
+        } else {
+            mhStart = ''; mhEnd = '';
+        }
         mhSyncMonthUI();
         loadMarketHistory(true);
         return;
     }
     const y = mhYear();
+    mhYearSel = String(y);          // 月份按钮隐含了年份 -> 同步下拉框
     mhMonth = k;
     mhStart = y + '-' + mhPad(k) + '-01';
     mhEnd = y + '-' + mhPad(k) + '-' + mhPad(mhLastDay(y, k));
@@ -2356,14 +2401,17 @@ function mhQuickRange(n) {
         mhStart = d.getFullYear() + '-' + mhPad(d.getMonth() + 1) + '-' + mhPad(d.getDate());
         mhEnd = last;
         mhMonth = null;
+        mhYearSel = '';
         mhLatest = last;
+        mhBuildYears();
         mhSyncMonthUI();
         loadMarketHistory(true);
     });
 }
 
 function mhResetRange() {
-    mhStart = ''; mhEnd = ''; mhMonth = null;
+    mhStart = ''; mhEnd = ''; mhMonth = null; mhYearSel = '';
+    mhBuildYears();
     mhSyncMonthUI();
     loadMarketHistory(true);
 }
@@ -2391,6 +2439,7 @@ function fetchIntraday() {
 async function loadMarketHistory(force) {
     if (mhLoaded && !force) return;
     mhBuildMonths();
+    mhBuildYears();
     mhSyncMonthUI();
     const body = document.getElementById('mh-body');
     if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">正在统计…</td></tr>';
@@ -2412,6 +2461,7 @@ async function loadMarketHistory(force) {
     if (r.months && r.months.length) {
         mhMonthsAvail = {};
         for (let i = 0; i < r.months.length; i++) mhMonthsAvail[r.months[i]] = true;
+        mhBuildYears();
     }
     renderMarketHistory(r.rows || []);
 }
@@ -2482,7 +2532,8 @@ function renderMarketHistory(rows) {
                 : '') +
             '<span class="mh-item dim">共 ' + rows.length + ' 个交易日' +
                 (mhMonth ? '（' + mhYear() + '年' + mhMonth + '月）'
-                         : (mhStart || mhEnd ? '（' + (mhStart || '最早') + ' ~ ' + (mhEnd || '最新') + '）' : '')) +
+                         : (mhYearSel ? '（' + mhYearSel + '年）'
+                                      : (mhStart || mhEnd ? '（' + (mhStart || '最早') + ' ~ ' + (mhEnd || '最新') + '）' : ''))) +
                 '</span>';
     }
     if (body) {

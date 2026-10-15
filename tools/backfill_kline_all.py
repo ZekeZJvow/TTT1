@@ -26,10 +26,26 @@ import market_db as m
 import market_breadth as mb
 
 
+def _universe():
+    """股票列表：优先用本地 stock 表（离线可用），再退回东财接口"""
+    import realtime_snapshot as rs
+    rows = m._read(lambda c: c.execute("SELECT `code`,`name` FROM `stock`").fetchall(), [])
+    out = []
+    for r in rows:
+        sym = rs.sina_symbol(r["code"])
+        if sym:
+            out.append((sym, r["code"], r["name"]))
+    if out:
+        print("  股票列表来源：本地 stock 表（%d 只）" % len(out), flush=True)
+        return out
+    print("  本地无列表，改用东财接口…", flush=True)
+    return mb.a_share_symbols()
+
+
 def main(n=45):
     m.init_db()
     print("开始补齐全市场日K，datalen=%d" % n, flush=True)
-    uni = mb.a_share_symbols()
+    uni = _universe()
     print("全市场股票数: %d" % len(uni), flush=True)
     if not uni:
         print("获取股票列表失败", flush=True)
