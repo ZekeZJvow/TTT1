@@ -2290,6 +2290,7 @@ let mhStart = '';      // 日期范围（留空 = 不限）
 let mhEnd = '';
 let mhMonth = null;    // 当前选中的月份（1~12；null = 未选）
 let mhYearSel = '';    // 当前选中的年份（'' = 不限）
+let mhInitDone = false; // 是否已应用「默认年份 = 当前年份」
 let mhLatest = '';     // 最新有数据的交易日（用于确定年份）
 let mhHasMonths = {};   // 有数据的月份集合（默认全景视图下统计，兜底用）
 let mhMonthsAvail = null;  // 服务端返回的「有数据的月份」（YYYY-MM）
@@ -2300,6 +2301,14 @@ function mhYear() {
     // 月份按钮作用在哪个年份：优先用户选的年份，否则用最新有数据的年份
     if (mhYearSel) return Number(mhYearSel);
     return mhLatest ? Number(mhLatest.slice(0, 4)) : new Date().getFullYear();
+}
+
+function mhDefaultYear() {
+    // 默认看「当前年份」；当前年份没有数据就退回到最近有数据的年份
+    const nowY = String(new Date().getFullYear());
+    const ys = mhYears();
+    if (ys.indexOf(nowY) >= 0) return nowY;
+    return ys.length ? ys[0] : '';
 }
 
 function mhYears() {
@@ -2462,6 +2471,20 @@ async function loadMarketHistory(force) {
         mhMonthsAvail = {};
         for (let i = 0; i < r.months.length; i++) mhMonthsAvail[r.months[i]] = true;
         mhBuildYears();
+    }
+    if (!mhInitDone) {
+        // 第一次加载：默认选中「当前年份」，并按该年份整年重新拉一次
+        mhInitDone = true;
+        const dy = mhDefaultYear();
+        if (dy && String(dy) !== (mhYearSel || '')) {
+            mhYearSel = String(dy);
+            mhMonth = null;
+            mhStart = mhYearSel + '-01-01';
+            mhEnd = mhYearSel + '-12-31';
+            mhBuildYears();
+            mhSyncMonthUI();
+            return loadMarketHistory(true);
+        }
     }
     renderMarketHistory(r.rows || []);
 }
