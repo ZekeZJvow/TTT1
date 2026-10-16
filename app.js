@@ -2471,11 +2471,34 @@ function mhClearScore() {
     renderMarketHistory(mhRawRows);
 }
 
+function mhDateFmt(dt) {
+    return dt.getFullYear() + '-' + mhPad(dt.getMonth() + 1) + '-' + mhPad(dt.getDate());
+}
+
+function mhBuildDateDefaults() {
+    // 日期范围默认值：开始 = 今天减 3 个月，结束 = 今天（只在未填写时设置，不覆盖用户输入）
+    const s = document.getElementById('mh-date-start');
+    const e = document.getElementById('mh-date-end');
+    const now = new Date();
+    if (s && !s.value) {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() - 3);
+        s.value = mhDateFmt(d);
+    }
+    if (e && !e.value) {
+        e.value = mhDateFmt(now);
+    }
+}
+
 function mhQueryDate() {
-    const el = document.getElementById('mh-date-q');
-    const d = (el && el.value) || '';
-    if (!d) return;
-    mhStart = d; mhEnd = d; mhMonth = null; mhYearSel = '';
+    // 按「开始 ~ 结束」查询（都空则忽略；只填一个就只按那一个端点查）
+    const s = document.getElementById('mh-date-start');
+    const e = document.getElementById('mh-date-end');
+    const st = (s && s.value) || '';
+    const en = (e && e.value) || '';
+    if (!st && !en) return;
+    mhStart = st; mhEnd = en;
+    mhMonth = null; mhYearSel = '';
     mhBuildYears();
     mhSyncMonthUI();
     loadMarketHistory(true);
@@ -2505,6 +2528,7 @@ async function loadMarketHistory(force) {
     if (mhLoaded && !force) return;
     mhBuildMonths();
     mhBuildYears();
+    mhBuildDateDefaults();
     mhSyncMonthUI();
     const body = document.getElementById('mh-body');
     if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">正在统计…</td></tr>';

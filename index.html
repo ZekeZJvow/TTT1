@@ -406,8 +406,10 @@
                     <button class="mini-btn" onclick="mhResetRange()">全部</button>
                 </div>
                 <div class="date-row">
-                    <span class="date-row-label">日期查询：</span>
-                    <input type="date" id="mh-date-q" class="mh-year mh-dateq" title="输入一个交易日查询该日数据">
+                    <span class="date-row-label">日期范围：</span>
+                    <input type="date" id="mh-date-start" class="mh-year mh-dateq" title="开始日期（默认 = 当前日期减 3 个月）">
+                    <span class="range-sep">~</span>
+                    <input type="date" id="mh-date-end" class="mh-year mh-dateq" title="结束日期（默认 = 当前日期）">
                     <button class="mini-btn" onclick="mhQueryDate()">查询</button>
                     <span class="date-row-label">评分筛选：</span>
                     <select id="mh-score-op" class="mh-year" onchange="mhApplyScore()" title="评分筛选条件">
