@@ -919,16 +919,17 @@ def market_history_api():
         days = int(request.args.get("days", 45))
     except Exception:
         days = 45
-    days = max(5, min(days, 120))
+    days = max(5, min(days, 1500))
     start = (request.args.get("start") or "").strip()
     end = (request.args.get("end") or "").strip()
-    # 窗口：默认 120 天；指定了开始日期就往前覆盖到那天（最多 500 天）
+    # 窗口：默认 120 天；指定了开始日期就往前覆盖到那天（最多 1500 天，
+    # 数据都在 market_seal_stats 小表里，读 1500 天也只是几百行，很快）
     n = 120
     if start:
         try:
             _need = (datetime.now().date()
                      - datetime.strptime(start, "%Y-%m-%d").date()).days + 30
-            n = max(120, min(_need, 500))
+            n = max(120, min(_need, 1500))
         except Exception:
             n = 260
     try:
