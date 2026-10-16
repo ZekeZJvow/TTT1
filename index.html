@@ -405,6 +405,22 @@
                     <button class="mini-btn" onclick="mhQuickRange(60)">近60天</button>
                     <button class="mini-btn" onclick="mhResetRange()">全部</button>
                 </div>
+                <div class="date-row">
+                    <span class="date-row-label">日期查询：</span>
+                    <input type="date" id="mh-date-q" class="mh-year mh-dateq" title="输入一个交易日查询该日数据">
+                    <button class="mini-btn" onclick="mhQueryDate()">查询</button>
+                    <span class="date-row-label">评分筛选：</span>
+                    <select id="mh-score-op" class="mh-year" onchange="mhApplyScore()" title="评分筛选条件">
+                        <option value="">不限</option>
+                        <option value=">=">≥</option>
+                        <option value=">">大于</option>
+                        <option value="<=">≤</option>
+                        <option value="<">小于</option>
+                        <option value="=">等于</option>
+                    </select>
+                    <input type="number" id="mh-score-val" class="mh-year mh-score-val" placeholder="如 69" step="0.1" oninput="mhApplyScore()" title="评分阈值，如 69 表示筛出评分大于等于 69 的天">
+                    <button class="mini-btn" id="mh-score-clear" onclick="mhClearScore()" style="display:none">清除筛选</button>
+                </div>
                 <div id="mh-summary" class="mh-summary"></div>
                 <div id="mh-chart" style="width:100%;height:420px;"></div>
                 <div class="table-container" style="margin-top:14px">

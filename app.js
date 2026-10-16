@@ -2291,6 +2291,9 @@ let mhEnd = '';
 let mhMonth = null;    // 当前选中的月份（1~12；null = 未选）
 let mhYearSel = '';    // 当前选中的年份（'' = 不限）
 let mhInitDone = false; // 是否已应用「默认年份 = 当前年份」
+let mhScoreOp = '';    // 评分筛选：比较符（'' / >= / > / <= / < / =）
+let mhScoreVal = '';   // 评分筛选：阈值
+let mhRawRows = [];    // 最近一次拉取的原始行（未过滤）
 let mhLatest = '';     // 最新有数据的交易日（用于确定年份）
 let mhHasMonths = {};   // 有数据的月份集合（默认全景视图下统计，兜底用）
 let mhMonthsAvail = null;  // 服务端返回的「有数据的月份」（YYYY-MM）
@@ -2425,6 +2428,59 @@ function mhResetRange() {
     loadMarketHistory(true);
 }
 
+function mhScoreActive() {
+    return mhScoreOp !== '' && mhScoreVal !== '' && mhScoreVal !== null;
+}
+
+function mhScoreOpText() {
+    return ({ '>=': '≥', '>': '>', '<=': '≤', '<': '<', '=': '=' })[mhScoreOp] || mhScoreOp;
+}
+
+function mhApplyScoreFilter(rows) {
+    if (!mhScoreActive()) return rows;
+    const v = Number(mhScoreVal);
+    if (!isFinite(v)) return rows;
+    return rows.filter(function (r) {
+        if (r.score == null) return false;
+        switch (mhScoreOp) {
+            case '>=': return r.score >= v;
+            case '>': return r.score > v;
+            case '<=': return r.score <= v;
+            case '<': return r.score < v;
+            case '=': return r.score === v;
+            default: return true;
+        }
+    });
+}
+
+function mhApplyScore() {
+    const op = document.getElementById('mh-score-op');
+    const val = document.getElementById('mh-score-val');
+    mhScoreOp = (op && op.value) || '';
+    mhScoreVal = (val && val.value !== '' && val.value !== null) ? val.value : '';
+    const btn = document.getElementById('mh-score-clear');
+    if (btn) btn.style.display = mhScoreActive() ? '' : 'none';
+    renderMarketHistory(mhApplyScoreFilter(mhRawRows));
+}
+
+function mhClearScore() {
+    mhScoreOp = ''; mhScoreVal = '';
+    const op = document.getElementById('mh-score-op'); if (op) op.value = '';
+    const val = document.getElementById('mh-score-val'); if (val) val.value = '';
+    const btn = document.getElementById('mh-score-clear'); if (btn) btn.style.display = 'none';
+    renderMarketHistory(mhRawRows);
+}
+
+function mhQueryDate() {
+    const el = document.getElementById('mh-date-q');
+    const d = (el && el.value) || '';
+    if (!d) return;
+    mhStart = d; mhEnd = d; mhMonth = null; mhYearSel = '';
+    mhBuildYears();
+    mhSyncMonthUI();
+    loadMarketHistory(true);
+}
+
 function fetchIntraday() {
     // 盘中实时：抓一次全市场快照（家数 + 成交额 + 盘中封板率）
     const sum = document.getElementById('mh-summary');
@@ -2486,7 +2542,8 @@ async function loadMarketHistory(force) {
             return loadMarketHistory(true);
         }
     }
-    renderMarketHistory(r.rows || []);
+    mhRawRows = r.rows || [];
+    renderMarketHistory(mhApplyScoreFilter(mhRawRows));
 }
 
 function fmtMhAmount(v) {
@@ -2518,8 +2575,9 @@ function renderMarketHistory(rows) {
     const body = document.getElementById('mh-body');
     const sum = document.getElementById('mh-summary');
     if (!rows.length) {
-        if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">该日期范围内暂无数据</td></tr>';
-        if (sum) sum.innerHTML = '<span class="mh-item dim">该日期范围内暂无数据</span>';
+        const emptyMsg = mhScoreActive() ? '没有符合评分筛选条件的交易日' : '该日期范围内暂无数据';
+        if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">' + emptyMsg + '</td></tr>';
+        if (sum) sum.innerHTML = '<span class="mh-item dim">' + emptyMsg + '</span>';
         if (mhChart) mhChart.clear();
         return;
     }
@@ -2527,7 +2585,7 @@ function renderMarketHistory(rows) {
     if (last && last.date) {
         mhLatest = last.date;
     }
-    if (!mhStart && !mhEnd) {
+    if (!mhStart && !mhEnd && !mhScoreActive()) {
         // 默认全景视图 -> 记下哪些月份有数据（没数据的月份按钮置灰）
         const has = {};
         for (let i = 0; i < rows.length; i++) {
@@ -2553,11 +2611,16 @@ function renderMarketHistory(rows) {
             (last.src === 'intraday'
                 ? '<span class="mh-item live-note">⏳ 盘中实时（未收盘）· 数值会随行情变动，收盘后自动替换为正式数据</span>'
                 : '') +
-            '<span class="mh-item dim">共 ' + rows.length + ' 个交易日' +
-                (mhMonth ? '（' + mhYear() + '年' + mhMonth + '月）'
-                         : (mhYearSel ? '（' + mhYearSel + '年）'
-                                      : (mhStart || mhEnd ? '（' + (mhStart || '最早') + ' ~ ' + (mhEnd || '最新') + '）' : ''))) +
-                '</span>';
+            (mhScoreActive()
+                ? '<span class="mh-item dim">评分 ' + mhScoreOpText() + ' ' + mhScoreVal +
+                    ' · 筛选出 <b>' + rows.length + '</b> / 共 ' + mhRawRows.length + ' 个交易日</span>'
+                : '<span class="mh-item dim">共 ' + rows.length + ' 个交易日' +
+                    (mhMonth ? '（' + mhYear() + '年' + mhMonth + '月）'
+                             : (mhYearSel ? '（' + mhYearSel + '年）'
+                                          : ((mhStart || mhEnd)
+                                              ? (mhStart === mhEnd ? '（' + mhStart + '）'
+                                                                   : '（' + (mhStart || '最早') + ' ~ ' + (mhEnd || '最新') + '）')
+                                              : ''))) + '</span>');
     }
     if (body) {
         body.innerHTML = rows.slice().reverse().map(function (x) {

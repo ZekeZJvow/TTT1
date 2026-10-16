@@ -1181,6 +1181,8 @@ body {
 }
 .mh-year:hover { border-color: #3498db; }
 .mh-year:focus { outline: none; border-color: #3498db; }
+.mh-dateq { color-scheme: dark; }
+.mh-score-val { width: 90px; }
 .mh-months { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .mh-month-btn { padding: 5px 11px; border-radius: 8px; font-size: .8rem; }
 .mh-month-btn.active {
