@@ -483,6 +483,12 @@ def run_intraday_job(trade_date=None):
     return msg
 
 
+def _fetch_margin(target=None):
+    """融资融券余额（T+1 公布，回补最近 30 天）"""
+    import margin_data as _mg
+    return "融资融券+%d天" % _mg.sync_recent(30)
+
+
 def _fetch_seal(target=None):
     """离线算好「每日封板率」并落库（只算缺的日子，一般 1 天）"""
     import market_db as _mdb
@@ -514,6 +520,7 @@ def run_daily_job(target_date=None, progress=None, name="close"):
     step("screen", lambda: _fetch_scan(target))
     step("turnover", _fetch_turnover)
     step("breadth", lambda: _fetch_breadth(target))
+    step("margin", lambda: _fetch_margin(target))
     step("sealstats", lambda: _fetch_seal(target))
     step("themes", lambda: _fetch_themes(target))
 

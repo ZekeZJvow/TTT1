@@ -270,7 +270,17 @@ CREATE TABLE IF NOT EXISTS market_breadth (
   collected_at TEXT
 );
 
--- 17. 每日两市成交额（沪市 + 深市，单位：亿元）—— 供「行情评分走势」的成交额总计 / 较上一日
+-- 17. 每日融资融券余额（沪深两市合计，单位：亿元）
+CREATE TABLE IF NOT EXISTS market_margin (
+  trade_date   TEXT PRIMARY KEY,
+  rz_ye        REAL,                     -- 融资余额（亿元）
+  rq_ye        REAL,                     -- 融券余额（亿元）
+  total        REAL,                     -- 融资融券余额合计（亿元）
+  source       TEXT,
+  collected_at TEXT
+);
+
+-- 18. 每日两市成交额（沪市 + 深市，单位：亿元）—— 供「行情评分走势」的成交额总计 / 较上一日
 CREATE TABLE IF NOT EXISTS market_turnover (
   trade_date   TEXT PRIMARY KEY,
   sh_amount    REAL,                     -- 沪市成交额（亿元）

@@ -10,7 +10,7 @@ datas = ["index.html", "app.js", "styles.css", "icon.ico", "echarts.min.js",
          "tools/backfill_hotlist.py", "tools/backfill_turnover.py",
          "tools/backfill_kline_all.py"]
 hidden = ["flask", "flask_cors", "urllib3", "requests", "screener", "stock_data",
-          "market_db", "market_turnover", "market_breadth", "realtime_snapshot", "ths_turnover", "scheduler", "notifier", "backfill_hotlist",
+          "market_db", "market_turnover", "market_breadth", "realtime_snapshot", "ths_turnover", "margin_data", "scheduler", "notifier", "backfill_hotlist",
           "openpyxl"]
 
 cmd = [os.path.join(ROOT, "venv", "Scripts", "python.exe"), "-m", "PyInstaller",

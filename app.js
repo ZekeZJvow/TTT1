@@ -1266,7 +1266,7 @@ function renderTopStocksTable() {
     }
 
     if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty-cell">该题材在 Top50 中没有股票</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="empty-cell">该题材在 Top50 中没有股票</td></tr>';
     } else {
         tbody.innerHTML = list.map(function (s, i) {
             let hk, cls;
@@ -2531,7 +2531,7 @@ async function loadMarketHistory(force) {
     mhBuildDateDefaults();
     mhSyncMonthUI();
     const body = document.getElementById('mh-body');
-    if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">正在统计…</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="10" class="empty-cell">正在统计…</td></tr>';
     let r;
     try {
         let _u = '/api/market-history?days=45';
@@ -2539,11 +2539,11 @@ async function loadMarketHistory(force) {
         if (mhEnd) _u += '&end=' + encodeURIComponent(mhEnd);
         r = await (await fetch(_u)).json();
     } catch (e) {
-        if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="10" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
         return;
     }
     if (!r || !r.success) {
-        if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="10" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
         return;
     }
     mhLoaded = true;
@@ -2600,7 +2600,7 @@ function renderMarketHistory(rows) {
     const sum = document.getElementById('mh-summary');
     if (!rows.length) {
         const emptyMsg = mhScoreActive() ? '没有符合评分筛选条件的交易日' : '该日期范围内暂无数据';
-        if (body) body.innerHTML = '<tr><td colspan="8" class="empty-cell">' + emptyMsg + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="10" class="empty-cell">' + emptyMsg + '</td></tr>';
         if (sum) sum.innerHTML = '<span class="mh-item dim">' + emptyMsg + '</span>';
         if (mhChart) mhChart.clear();
         return;
@@ -2660,6 +2660,8 @@ function renderMarketHistory(rows) {
                 '<td class="num dim">' + ratio + '</td>' +
                 '<td class="num up-strong">' + fmtMhAmount(x.amount) + '</td>' +
                 '<td class="num ' + mhDiffCls(x.amount_diff) + '">' + fmtMhDiff(x.amount_diff) + '</td>' +
+                '<td class="num">' + fmtMhAmount(x.rz_ye) + '</td>' +
+                '<td class="num">' + fmtMhAmount(x.rq_ye) + '</td>' +
                 '</tr>';
         }).join('');
     }

@@ -1519,6 +1519,7 @@ DATE_COLUMN = {
     "trade_calendar": "trade_date",
     "market_seal_stats": "trade_date",
     "market_breadth": "trade_date",
+    "market_margin": "trade_date",
     "market_turnover": "trade_date",
     "raw_payload": "trade_date",
     "stock_news": "news_date",
@@ -1532,7 +1533,7 @@ _TABLES = ("stock", "trade_calendar", "theme_catalog", "theme_member",
            "hotlist_snapshot", "limit_up_pool", "daily_kline", "minute_kline",
            "stock_news", "stock_anomaly", "dragon_tiger",
            "theme_heat_snapshot", "theme_topic", "theme_topic_link", "theme_top_stock",
-           "market_seal_stats", "market_breadth", "market_turnover",
+           "market_seal_stats", "market_breadth", "market_turnover", "market_margin",
            "screening_run", "screening_result", "scan_stock", "fetch_log", "raw_payload")
 
 _CLEARABLE = tuple(DATE_COLUMN.keys())
@@ -1551,6 +1552,7 @@ TABLE_LABEL = {
     "market_seal_stats": "每日封板率",
     "market_breadth": "涨跌家数",
     "market_turnover": "两市成交额",
+    "market_margin": "融资融券余额",
     "raw_payload": "原始响应快照",
 }
 
@@ -2260,6 +2262,52 @@ def market_breadth_map(start=None, end=None):
     return _read(_f, {}) or {}
 
 
+def save_margin_batch(rows, source="em_rzrq"):
+    """写入每日融资融券余额（单位：亿元）
+
+    rows = [{"date": "2026-10-15", "rz": 24741.96, "rq": 289.96, "total": 25031.92}, ...]
+    """
+    rows = [r for r in (rows or []) if r and r.get("date")]
+    if not rows:
+        return 0
+
+    def _f(conn):
+        cur = conn.cursor()
+        sql = _upsert("market_margin",
+                      ["trade_date", "rz_ye", "rq_ye", "total", "source", "collected_at"],
+                      ["trade_date"],
+                      ["rz_ye", "rq_ye", "total", "source", "collected_at"])
+        ts = now_str()
+        n = 0
+        for r in rows:
+            cur.execute(sql, (str(r["date"]), _num(r.get("rz")), _num(r.get("rq")),
+                              _num(r.get("total")), source, ts))
+            n += 1
+        return n
+    n = _write(_f)
+    if n:
+        invalidate_market_stats()
+    return n or 0
+
+
+def margin_map(start=None, end=None):
+    """读融资融券余额 -> {trade_date: {"rz","rq","total"}}（亿元）"""
+    def _f(conn):
+        sql = "SELECT `trade_date`,`rz_ye`,`rq_ye`,`total` FROM `market_margin`"
+        cond, args = [], []
+        if start:
+            cond.append("`trade_date`>=?"); args.append(start)
+        if end:
+            cond.append("`trade_date`<=?"); args.append(end)
+        if cond:
+            sql += " WHERE " + " AND ".join(cond)
+        out = {}
+        for r in conn.execute(sql, tuple(args)).fetchall():
+            out[r["trade_date"]] = {"rz": r["rz_ye"], "rq": r["rq_ye"], "total": r["total"]}
+        return out
+    return _read(_f, {}) or {}
+
+
 def save_turnover_batch(rows, source="em_index"):
     """写入每日两市成交额（单位：亿元）
 
@@ -2579,6 +2627,14 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                     tmap[r["trade_date"]] = float(r["amount"])
         except Exception:
             tmap = {}
+        # 融资融券余额（沪深两市合计，T+1 公布）
+        mmap = {}
+        try:
+            for r in conn.execute(
+                    "SELECT `trade_date`,`rz_ye`,`rq_ye` FROM `market_margin`").fetchall():
+                mmap[r["trade_date"]] = (r["rz_ye"], r["rq_ye"])
+        except Exception:
+            mmap = {}
         # 真实选股结果（更权威）
         real = {}
         if prefer_screening:
@@ -2611,10 +2667,11 @@ def daily_market_stats(max_days=45, prefer_screening=True):
             diff = (round(amt - prev_amt, 2)
                     if (amt is not None and prev_amt is not None) else None)
             prev_amt = amt if amt is not None else prev_amt
+            rzye, rqye = mmap.get(d, (None, None))
             out.append({"date": d, "up": up, "down": down, "flat": flat,
                         "final": final, "sealed": sealed, "score": score, "src": src,
                         "breadth_src": bsrc, "amount": amt, "amount_prev": None,
-                        "amount_diff": diff})
+                        "amount_diff": diff, "rz_ye": rzye, "rq_ye": rqye})
         return out[-n:]
     rows = _read(_f, []) or []
     if not rows:
