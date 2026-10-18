@@ -35,3 +35,15 @@ if p.returncode != 0:
     sys.exit(1)
 src = os.path.join(ROOT, "_dist_v31", "A股人气雷达.exe")
 print("built:", src, os.path.getsize(src) if os.path.exists(src) else "MISSING")
+
+# 构建成功后自动安装到 dist\ 与 dist_backup\（程序在运行时复制会失败，忽略即可）
+if os.path.exists(src):
+    import shutil
+    for sub in ("dist", "dist_backup"):
+        d = os.path.join(ROOT, sub)
+        try:
+            os.makedirs(d, exist_ok=True)
+            shutil.copyfile(src, os.path.join(d, "A股人气雷达.exe"))
+            print("installed ->", os.path.join(sub, "A股人气雷达.exe"))
+        except Exception as e:
+            print("install skip %s: %s" % (sub, e))

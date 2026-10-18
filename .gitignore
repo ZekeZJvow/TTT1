@@ -66,3 +66,9 @@ theme_heat_cache.sqlite3
 
 # 开发期临时脚本
 tools/_dev_scratch/
+
+# 打包产物 / 备份（运行产物，不入库）
+dist_backup/
+_build_v31/
+_dist_v31/
+_spec_v31/

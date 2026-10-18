@@ -1,13 +1,13 @@
 ' ============================================================
 '  A-share Hot List - watchdog (NO console window at all)
-'  Runs from a scheduled task every 10 minutes (action = wscript.exe).
-'  Checks http://127.0.0.1:5000 ; if the app is not serving, silently
-'  restarts it through run_hidden.vbs (window style 0 = hidden).
-'  NOTE: keep this file ASCII-only (WSH reads .vbs as ANSI).
+'  Scheduled task runs this every 10 minutes (action = wscript.exe).
+'    1) dist exe missing -> restore from dist_backup (same file name)
+'    2) http://127.0.0.1:5000 not serving -> start silently via run_hidden.vbs
+'  Keep this file ASCII-only (WSH reads .vbs as ANSI).
 ' ============================================================
 Option Explicit
 
-Dim fso, sh, Q, scriptDir, root, exe, vbs
+Dim fso, sh, Q, scriptDir, root, distDir, bakDir, exe, bak, vbs
 
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set sh  = CreateObject("WScript.Shell")
@@ -15,13 +15,25 @@ Q = Chr(34)
 
 scriptDir = fso.GetParentFolderName(fso.GetAbsolutePathName(WScript.ScriptFullName))
 root = fso.GetParentFolderName(scriptDir)
+distDir = fso.BuildPath(root, "dist")
+bakDir = fso.BuildPath(root, "dist_backup")
 vbs  = scriptDir & "\run_hidden.vbs"
-exe  = FindExe(fso.BuildPath(root, "dist"))
 
+exe = FindExe(distDir)
+If exe = "" Then
+    bak = FindExe(bakDir)
+    If bak <> "" Then
+        On Error Resume Next
+        fso.CopyFile bak, distDir & "\" & fso.GetFileName(bak), True
+        Err.Clear
+        On Error GoTo 0
+        exe = FindExe(distDir)
+    End If
+End If
 If exe = "" Then WScript.Quit 0
+
 If ServerUp() Then WScript.Quit 0
 
-' not serving -> restart silently (wscript = no console, exe launched hidden)
 sh.CurrentDirectory = fso.GetParentFolderName(exe)
 sh.Run "wscript.exe " & Q & vbs & Q & " " & Q & exe & Q, 0, False
 WScript.Quit 0
