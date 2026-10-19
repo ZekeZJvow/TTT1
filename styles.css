@@ -1410,3 +1410,17 @@ body {
 .cond-scan { margin-top: 10px; }
 .cond-scan-title { color: #9aa0a6; font-size: .84rem; margin-bottom: 8px; line-height: 1.7; }
 .cond-scan-hint { color: #8a8a8a; font-size: .85rem; padding: 8px 0; }
+
+.cond-ops { display: inline-flex; gap: 4px; }
+.op-btn { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.16);
+    color: #c8c8c8; border-radius: 6px; padding: 3px 9px; font-size: .8rem;
+    cursor: pointer; font-family: inherit; }
+.op-btn:hover { border-color: #3498db; color: #fff; }
+.op-btn.active { background: rgba(52,152,219,.25); border-color: #3498db; color: #fff; font-weight: 600; }
+.cond-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 auto; min-width: 0; max-width: 100%; }
+.chip-btn { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.16);
+    color: #c8c8c8; border-radius: 14px; padding: 3px 11px; font-size: .8rem;
+    cursor: pointer; font-family: inherit; }
+.chip-btn:hover { border-color: #3498db; color: #fff; }
+.chip-btn.active { background: linear-gradient(135deg,#3498db,#2980b9); border-color: #3498db;
+    color: #fff; font-weight: 600; }

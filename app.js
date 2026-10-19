@@ -2734,6 +2734,71 @@ let condLoaded = false;
 let condChart = null;
 let condScanRows = [];
 
+// ① 当日条件：评分/上涨家数 用「按钮组」选择
+let condScoreOp = '>=', condScoreVal = 50;
+let condUpOp = '>=', condUpVal = 2000;
+const COND_SCORE_CHOICES = [30, 40, 50, 60, 70];
+const COND_UP_CHOICES = [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000];
+
+function condBuildChips() {
+    const sc = document.getElementById('cond-score-chips');
+    if (sc && !sc.childElementCount) {
+        sc.innerHTML = COND_SCORE_CHOICES.map(function (v) {
+            return '<button class="chip-btn" data-v="' + v + '" onclick="condPickVal(\'score\',' + v + ')">' + v + '分</button>';
+        }).join('');
+    }
+    const uc = document.getElementById('cond-up-chips');
+    if (uc && !uc.childElementCount) {
+        uc.innerHTML = COND_UP_CHOICES.map(function (v) {
+            return '<button class="chip-btn" data-v="' + v + '" onclick="condPickVal(\'up\',' + v + ')">' + v + '</button>';
+        }).join('');
+    }
+    condSyncChips();
+}
+
+function condSyncChips() {
+    const sc = document.getElementById('cond-score-chips');
+    if (sc) {
+        Array.prototype.forEach.call(sc.children, function (b) {
+            b.classList.toggle('active', condScoreVal !== null && Number(b.getAttribute('data-v')) === Number(condScoreVal));
+        });
+    }
+    const uc = document.getElementById('cond-up-chips');
+    if (uc) {
+        Array.prototype.forEach.call(uc.children, function (b) {
+            b.classList.toggle('active', condUpVal !== null && Number(b.getAttribute('data-v')) === Number(condUpVal));
+        });
+    }
+    const so = document.getElementById('cond-score-ops');
+    if (so) {
+        Array.prototype.forEach.call(so.children, function (b) {
+            b.classList.toggle('active', b.getAttribute('data-op') === condScoreOp);
+        });
+    }
+    const uo = document.getElementById('cond-up-ops');
+    if (uo) {
+        Array.prototype.forEach.call(uo.children, function (b) {
+            b.classList.toggle('active', b.getAttribute('data-op') === condUpOp);
+        });
+    }
+}
+
+function condSetOp(kind, op) {
+    if (kind === 'score') condScoreOp = op; else condUpOp = op;
+    condSyncChips();
+    runCond();
+}
+
+function condPickVal(kind, v) {
+    if (kind === 'score') {
+        condScoreVal = (condScoreVal !== null && Number(condScoreVal) === Number(v)) ? null : v;
+    } else {
+        condUpVal = (condUpVal !== null && Number(condUpVal) === Number(v)) ? null : v;
+    }
+    condSyncChips();
+    runCond();
+}
+
 function condNum(id) {
     const el = document.getElementById(id);
     if (!el || el.value === '' || el.value === null) return null;
@@ -2886,8 +2951,8 @@ function runCond() {
     const label = document.getElementById('cond-count-label');
     if (!condRows.length) { if (note) note.textContent = '暂无历史数据'; return; }
 
-    const cScoreOp = condVal('cond-score-op'), cScoreVal = condNum('cond-score-val');
-    const cUpOp = condVal('cond-up-op'), cUpVal = condNum('cond-up-val');
+    const cScoreOp = condScoreOp, cScoreVal = condScoreVal;
+    const cUpOp = condUpOp, cUpVal = condUpVal;
     const cAmtOp = condVal('cond-amt-op'), cAmtVal = condNum('cond-amt-val');
     const nScoreOp = condVal('cond-nscore-op'), nScoreVal = condNum('cond-nscore-val');
     const nUpOp = condVal('cond-nup-op'), nUpVal = condNum('cond-nup-val');
@@ -3110,12 +3175,13 @@ function condApplyScan(i) {
     const r = condScanRows[i];
     if (!r) return;
     const set = function (id, v) { const el = document.getElementById(id); if (el) el.value = v; };
-    set('cond-score-op', r.scoreOp || '>=');
-    set('cond-score-val', r.scoreVal === null || r.scoreVal === undefined ? '' : r.scoreVal);
-    set('cond-up-op', r.upOp || '>=');
-    set('cond-up-val', r.upVal === null || r.upVal === undefined ? '' : r.upVal);
+    condScoreOp = r.scoreOp || '>=';
+    condScoreVal = (r.scoreVal === null || r.scoreVal === undefined) ? null : r.scoreVal;
+    condUpOp = r.upOp || '>=';
+    condUpVal = (r.upVal === null || r.upVal === undefined) ? null : r.upVal;
     set('cond-amt-op', ''); set('cond-amt-val', '');
     condSyncAmt();
+    condSyncChips();
     runCond();
     const el = document.getElementById('cond-note');
     if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' });
@@ -3123,8 +3189,9 @@ function condApplyScan(i) {
 
 function condReset() {
     const set = function (id, v) { const el = document.getElementById(id); if (el) el.value = v; };
-    set('cond-score-op', '>='); set('cond-score-val', '50');
-    set('cond-up-op', '>='); set('cond-up-val', '2000');
+    condScoreOp = '>='; condScoreVal = 50;
+    condUpOp = '>='; condUpVal = 2000;
+    condSyncChips();
     set('cond-amt-op', ''); set('cond-amt-val', '');
     set('cond-nscore-op', '>='); set('cond-nscore-val', '50');
     set('cond-nup-op', '>='); set('cond-nup-val', '2000');
@@ -3143,6 +3210,7 @@ async function loadCond(force) {
         if (!r || !r.success) throw new Error((r && r.error) || '暂无数据');
         condRows = r.rows || [];
         condLoaded = true;
+        condBuildChips();
         condInitRange();
         condSyncAmt();
         runCond();

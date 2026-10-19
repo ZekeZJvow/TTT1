@@ -479,17 +479,21 @@
                 <div class="hot-themes-head"><h3>① 当日条件</h3></div>
                 <div class="date-row">
                     <span class="date-row-label">行情评分</span>
-                    <select id="cond-score-op" class="mh-year">
-                        <option value=">=">≥</option><option value=">">大于</option>
-                        <option value="<=">≤</option><option value="<">小于</option>
-                    </select>
-                    <input type="number" id="cond-score-val" class="mh-year mh-score-val" value="50" step="0.1">
+                    <div class="cond-ops" id="cond-score-ops">
+                        <button class="op-btn active" data-op=">=" onclick="condSetOp('score','>=')">≥</button>
+                        <button class="op-btn" data-op="<" onclick="condSetOp('score','<')">＜</button>
+                    </div>
+                    <div class="cond-chips" id="cond-score-chips"></div>
+                </div>
+                <div class="date-row">
                     <span class="date-row-label">上涨家数</span>
-                    <select id="cond-up-op" class="mh-year">
-                        <option value=">=">≥</option><option value=">">大于</option>
-                        <option value="<=">≤</option><option value="<">小于</option>
-                    </select>
-                    <input type="number" id="cond-up-val" class="mh-year mh-score-val" value="2000" step="10">
+                    <div class="cond-ops" id="cond-up-ops">
+                        <button class="op-btn active" data-op=">=" onclick="condSetOp('up','>=')">≥</button>
+                        <button class="op-btn" data-op="<" onclick="condSetOp('up','<')">＜</button>
+                    </div>
+                    <div class="cond-chips" id="cond-up-chips"></div>
+                </div>
+                <div class="date-row">
                     <span class="date-row-label">成交额(亿)</span>
                     <select id="cond-amt-op" class="mh-year" onchange="condSyncAmt()">
                         <option value="">不限</option>
@@ -522,22 +526,6 @@
                 <div id="cond-chart" style="width:100%;height:320px;"></div>
             </div>
 
-            <div class="hot-themes-box">
-                <div class="hot-themes-head">
-                    <h3>④ 匹配到的交易日（可逐条核对）</h3>
-                    <span id="cond-count-label" class="cond-sub"></span>
-                </div>
-                <div class="table-container">
-                    <table class="stock-table cond-table">
-                        <thead><tr>
-                            <th>当日日期</th><th class="num">当日评分</th><th class="num">当日上涨</th>
-                            <th>次日日期</th><th class="num">次日评分</th><th class="num">次日上涨</th>
-                            <th class="num">次日涨/跌</th><th class="num">间隔</th>
-                        </tr></thead>
-                        <tbody id="cond-body"></tbody>
-                    </table>
-                </div>
-            </div>
         </section>
 
         <!-- ============ 面板四：数据管理（已关闭：不在页面显示；要恢复删掉 panel-db 上的 style） ============ -->
