@@ -754,10 +754,12 @@ function switchMode(mode, event) {
     document.getElementById('panel-db').classList.toggle('hidden', mode !== 'db');
     document.getElementById('panel-multi').classList.toggle('hidden', mode !== 'multi');
     document.getElementById('panel-market').classList.toggle('hidden', mode !== 'market');
+    document.getElementById('panel-cond').classList.toggle('hidden', mode !== 'cond');
     if (mode === 'screen') ensureScreenDate();
     if (mode === 'theme') { loadHotThemes(false); loadThemeDates(); }
     if (mode === 'multi') { loadMulti(false); }
     if (mode === 'market') { loadMarketHistory(false); }
+    if (mode === 'cond') { loadCond(false); }
     if (mode === 'db') { loadDbOverview(); loadDbJob(); loadIntegrity(); loadNotifyStatus(); loadExportInfo(); loadDbCoverage(); loadBackfillMissing(); }
 }
 
@@ -2725,3 +2727,221 @@ function renderMarketHistory(rows) {
 }
 window.addEventListener('resize', function () { if (mhChart) mhChart.resize(); });
 
+
+// ==================== 模块：条件概率（次日） ====================
+let condRows = [];
+let condLoaded = false;
+let condChart = null;
+
+function condNum(id) {
+    const el = document.getElementById(id);
+    if (!el || el.value === '' || el.value === null) return null;
+    const n = Number(el.value);
+    return isFinite(n) ? n : null;
+}
+
+function condVal(id) {
+    const el = document.getElementById(id);
+    return el ? el.value : '';
+}
+
+function condPass(v, op, x) {
+    if (v === null || v === undefined) return false;
+    switch (op) {
+        case '>=': return v >= x;
+        case '>': return v > x;
+        case '<=': return v <= x;
+        case '<': return v < x;
+        default: return true;
+    }
+}
+
+function condMetrics(pairs, nScoreOp, nScoreVal, nUpOp, nUpVal) {
+    const n = pairs.length;
+    const out = { n: n, pScore: null, pUp: null, pUpDown: null,
+                  meanScore: null, medianScore: null, buckets: [0, 0, 0, 0, 0] };
+    if (!n) return out;
+    let hitS = 0, hitU = 0, hitUD = 0;
+    const scores = [];
+    for (let i = 0; i < pairs.length; i++) {
+        const nx = pairs[i].next;
+        const s = nx.score;
+        if (s !== null && s !== undefined) {
+            scores.push(s);
+            if (nScoreVal !== null && condPass(s, nScoreOp, nScoreVal)) hitS++;
+            if (s < 40) out.buckets[0]++;
+            else if (s < 50) out.buckets[1]++;
+            else if (s < 60) out.buckets[2]++;
+            else if (s < 70) out.buckets[3]++;
+            else out.buckets[4]++;
+        }
+        if (nUpVal !== null && condPass(nx.up, nUpOp, nUpVal)) hitU++;
+        if ((nx.up || 0) > (nx.down || 0)) hitUD++;
+    }
+    out.pScore = nScoreVal !== null ? hitS / n * 100 : null;
+    out.pUp = nUpVal !== null ? hitU / n * 100 : null;
+    out.pUpDown = hitUD / n * 100;
+    if (scores.length) {
+        out.meanScore = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;
+        const sorted = scores.slice().sort(function (a, b) { return a - b; });
+        out.medianScore = sorted[Math.floor(sorted.length / 2)];
+    }
+    return out;
+}
+
+function condDiff(cur, base) {
+    // 返回 {txt, cls}：条件组 vs 全样本基准
+    if (cur === null || base === null || cur === undefined || base === undefined) {
+        return { txt: '—', cls: 'dim' };
+    }
+    const d = cur - base;
+    const cls = Math.abs(d) < 1 ? 'dim' : (d > 0 ? 'up' : 'down');
+    return { txt: (d >= 0 ? '+' : '') + d.toFixed(0) + 'pp', cls: cls };
+}
+
+function runCond() {
+    const note = document.getElementById('cond-note');
+    const cards = document.getElementById('cond-cards');
+    const body = document.getElementById('cond-body');
+    const label = document.getElementById('cond-count-label');
+    if (!condRows.length) {
+        if (note) note.textContent = '暂无历史数据';
+        return;
+    }
+
+    const cScoreOp = condVal('cond-score-op'), cScoreVal = condNum('cond-score-val');
+    const cUpOp = condVal('cond-up-op'), cUpVal = condNum('cond-up-val');
+    const cAmtOp = condVal('cond-amt-op'), cAmtVal = condNum('cond-amt-val');
+    const nScoreOp = condVal('cond-nscore-op'), nScoreVal = condNum('cond-nscore-val');
+    const nUpOp = condVal('cond-nup-op'), nUpVal = condNum('cond-nup-val');
+
+    const ok = function (r) {
+        if (cScoreVal !== null && !condPass(r.score, cScoreOp, cScoreVal)) return false;
+        if (cUpVal !== null && !condPass(r.up, cUpOp, cUpVal)) return false;
+        if (cAmtOp && cAmtVal !== null && !condPass(r.amount, cAmtOp, cAmtVal)) return false;
+        return true;
+    };
+
+    const pairs = [], allPairs = [];
+    for (let i = 0; i < condRows.length - 1; i++) {
+        const p = { cur: condRows[i], next: condRows[i + 1] };
+        allPairs.push(p);
+        if (ok(condRows[i])) pairs.push(p);
+    }
+
+    const base = condMetrics(allPairs, nScoreOp, nScoreVal, nUpOp, nUpVal);
+    const cur = condMetrics(pairs, nScoreOp, nScoreVal, nUpOp, nUpVal);
+    const n = cur.n;
+
+    // 条件描述
+    const parts = [];
+    if (cScoreVal !== null) parts.push('评分 ' + ({ '>=': '≥', '>': '>', '<=': '≤', '<': '<' }[cScoreOp] || '') + ' ' + cScoreVal);
+    if (cUpVal !== null) parts.push('上涨家数 ' + ({ '>=': '≥', '>': '>', '<=': '≤', '<': '<' }[cUpOp] || '') + ' ' + cUpVal);
+    if (cAmtOp && cAmtVal !== null) parts.push('成交额 ' + (cAmtOp === '>=' ? '≥' : '≤') + ' ' + cAmtVal + '亿');
+    const condTxt = parts.length ? parts.join(' 且 ') : '不限条件（全样本）';
+
+    if (note) {
+        note.innerHTML = '条件：<b>' + escHtml(condTxt) + '</b> ｜ 匹配 <b>' + n + '</b> 天 / 全样本 ' + base.n +
+            ' 天（占 ' + (base.n ? (n / base.n * 100).toFixed(0) : 0) + '%）' +
+            (n < 20 ? ' <span class="warn-text">⚠ 样本少于 20 天，参考性弱</span>' : '');
+    }
+    if (label) label.textContent = '共 ' + n + ' 条（最多显示 60 条，新→旧）';
+
+    // ---- 卡片 ----
+    if (cards) {
+        const dS = condDiff(cur.pScore, base.pScore);
+        const dU = condDiff(cur.pUp, base.pUp);
+        const dUD = condDiff(cur.pUpDown, base.pUpDown);
+        const dMean = condDiff(cur.meanScore, base.meanScore);
+        const fmtP = function (v) { return v === null ? '—' : v.toFixed(0) + '%'; };
+        const card = function (title, val, sub, cls) {
+            return '<div class="cond-card"><div class="cc-title">' + title + '</div>' +
+                '<div class="cc-val ' + (cls || '') + '">' + val + '</div>' +
+                '<div class="cc-sub">' + (sub || '') + '</div></div>';
+        };
+        cards.innerHTML =
+            card('匹配样本', n + ' 天', '占全样本 ' + (base.n ? (n / base.n * 100).toFixed(0) : 0) + '%') +
+            card('次日评分 ' + (nScoreOp === '>=' ? '≥' : '≤') + ' ' + (nScoreVal === null ? '—' : nScoreVal),
+                 fmtP(cur.pScore),
+                 '基准 ' + fmtP(base.pScore) + ' · <b class="' + dS.cls + '">' + dS.txt + '</b>', 'mid') +
+            card('次日上涨家数 ' + (nUpOp === '>=' ? '≥' : '≤') + ' ' + (nUpVal === null ? '—' : nUpVal),
+                 fmtP(cur.pUp),
+                 '基准 ' + fmtP(base.pUp) + ' · <b class="' + dU.cls + '">' + dU.txt + '</b>', 'up') +
+            card('次日涨家数 &gt; 跌家数', fmtP(cur.pUpDown),
+                 '基准 ' + fmtP(base.pUpDown) + ' · <b class="' + dUD.cls + '">' + dUD.txt + '</b>', 'down') +
+            card('次日评分均值', cur.meanScore === null ? '—' : cur.meanScore.toFixed(1),
+                 '基准 ' + (base.meanScore === null ? '—' : base.meanScore.toFixed(1)) +
+                 ' · <b class="' + dMean.cls + '">' + dMean.txt + '</b>', '');
+    }
+
+    // ---- 表格 ----
+    if (body) {
+        if (!n) {
+            body.innerHTML = '<tr><td colspan="7" class="empty-cell">没有符合条件的交易日</td></tr>';
+        } else {
+            body.innerHTML = pairs.slice().reverse().slice(0, 60).map(function (p) {
+                const nx = p.next;
+                const cls = function (v) { return v == null ? 'dim' : (v >= 70 ? 'up-strong' : (v >= 50 ? 'mid' : 'down')); };
+                return '<tr>' +
+                    '<td>' + escHtml(p.cur.date) + '</td>' +
+                    '<td class="num ' + cls(p.cur.score) + '">' + (p.cur.score == null ? '—' : p.cur.score) + '</td>' +
+                    '<td class="num up">' + p.cur.up + '</td>' +
+                    '<td>' + escHtml(nx.date) + '</td>' +
+                    '<td class="num ' + cls(nx.score) + '">' + (nx.score == null ? '—' : nx.score) + '</td>' +
+                    '<td class="num">' + nx.up + '</td>' +
+                    '<td class="num dim">' + nx.up + ' / ' + nx.down + '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+    }
+
+    // ---- 图表：次日评分分布 ----
+    const box = document.getElementById('cond-chart');
+    if (!box) return;
+    if (!condChart) condChart = echarts.init(box);
+    const labels = ['<40', '40~50', '50~60', '60~70', '≥70'];
+    const pc = cur.buckets.map(function (v) { return n ? +(v / n * 100).toFixed(1) : 0; });
+    const pb = base.buckets.map(function (v) { return base.n ? +(v / base.n * 100).toFixed(1) : 0; });
+    condChart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis', valueFormatter: function (v) { return v + '%'; } },
+        legend: { data: ['条件组', '全样本'], textStyle: { color: '#a0a0a0' }, top: 4 },
+        grid: { left: 48, right: 24, top: 44, bottom: 40 },
+        xAxis: { type: 'category', data: labels, axisLabel: { color: '#9aa0a6' },
+                 axisLine: { lineStyle: { color: '#444' } } },
+        yAxis: { type: 'value', name: '占比 %', nameTextStyle: { color: '#9aa0a6' },
+                 axisLabel: { color: '#9aa0a6', formatter: '{value}%' },
+                 splitLine: { lineStyle: { color: 'rgba(255,255,255,.06)' } } },
+        series: [
+            { name: '条件组', type: 'bar', data: pc, itemStyle: { color: '#f39c12' },
+              label: { show: true, position: 'top', color: '#f5b041', fontSize: 11, formatter: '{c}%' } },
+            { name: '全样本', type: 'bar', data: pb, itemStyle: { color: 'rgba(52,152,219,.55)' },
+              label: { show: true, position: 'top', color: '#5dade2', fontSize: 11, formatter: '{c}%' } }
+        ]
+    }, true);
+}
+
+function condReset() {
+    const set = function (id, v) { const el = document.getElementById(id); if (el) el.value = v; };
+    set('cond-score-op', '>='); set('cond-score-val', '50');
+    set('cond-up-op', '>='); set('cond-up-val', '2000');
+    set('cond-amt-op', ''); set('cond-amt-val', '');
+    set('cond-nscore-op', '>='); set('cond-nscore-val', '50');
+    set('cond-nup-op', '>='); set('cond-nup-val', '2000');
+    runCond();
+}
+
+async function loadCond(force) {
+    if (condLoaded && !force) return;
+    try {
+        const r = await (await fetch('/api/market-history?start=2000-01-01&end=2099-12-31')).json();
+        if (!r || !r.success) throw new Error((r && r.error) || '暂无数据');
+        condRows = r.rows || [];
+        condLoaded = true;
+        runCond();
+    } catch (e) {
+        const note = document.getElementById('cond-note');
+        if (note) note.textContent = '加载失败：' + e.message;
+    }
+}
+window.addEventListener('resize', function () { if (condChart) condChart.resize(); });

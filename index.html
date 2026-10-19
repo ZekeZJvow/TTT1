@@ -27,6 +27,7 @@
             <button id="mode-theme" class="mode-btn" onclick="switchMode('theme', event)">🔥 当前题材热度</button>
         <button id="mode-multi" class="mode-btn" onclick="switchMode('multi', event)">📅 题材多日对照</button>
         <button id="mode-market" class="mode-btn" onclick="switchMode('market', event)">📈 行情评分走势</button>
+        <button id="mode-cond" class="mode-btn" onclick="switchMode('cond', event)">🔮 条件概率</button>
             <!-- 数据管理模块：按需求暂时关闭（不在页面显示）。要恢复：删掉下面这行的 style="display:none" -->
         <button id="mode-db" class="mode-btn" style="display:none" onclick="switchMode('db', event)">🗄️ 数据管理</button>
         </nav>
@@ -442,6 +443,81 @@
                             </tr>
                         </thead>
                         <tbody id="mh-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============ 面板七：条件概率（次日） ============ -->
+        <section id="panel-cond" class="panel hidden">
+            <div class="screen-intro">
+                <h2>条件概率 · 次日展望</h2>
+                <p class="screen-desc">
+                    用本地全部历史数据统计：<b>当今天满足某个条件时，次日出现某种结果的概率是多少</b>。
+                    条件可选「行情评分 / 上涨家数 / 成交额」，结果可选「次日评分 / 次日上涨家数 / 次日涨家数多于跌家数」。
+                    每个概率都会和<b>全样本基准</b>对比 —— <b>差值明显为正</b>才说明这个条件有预测力；
+                    若与基准几乎相同，说明该条件对次日没有参考价值。样本少于 20 天会提示参考性弱。
+                </p>
+            </div>
+
+            <div class="hot-themes-box">
+                <div class="hot-themes-head"><h3>① 当日条件</h3></div>
+                <div class="date-row">
+                    <span class="date-row-label">行情评分</span>
+                    <select id="cond-score-op" class="mh-year">
+                        <option value=">=">≥</option><option value=">">大于</option>
+                        <option value="<=">≤</option><option value="<">小于</option>
+                    </select>
+                    <input type="number" id="cond-score-val" class="mh-year mh-score-val" value="50" step="0.1">
+                    <span class="date-row-label">上涨家数</span>
+                    <select id="cond-up-op" class="mh-year">
+                        <option value=">=">≥</option><option value=">">大于</option>
+                        <option value="<=">≤</option><option value="<">小于</option>
+                    </select>
+                    <input type="number" id="cond-up-val" class="mh-year mh-score-val" value="2000" step="10">
+                    <span class="date-row-label">成交额(亿)</span>
+                    <select id="cond-amt-op" class="mh-year">
+                        <option value="">不限</option>
+                        <option value=">=">≥</option><option value="<=">≤</option>
+                    </select>
+                    <input type="number" id="cond-amt-val" class="mh-year mh-score-val" placeholder="不限" step="100">
+                </div>
+
+                <div class="hot-themes-head" style="margin-top:14px"><h3>② 次日目标</h3></div>
+                <div class="date-row">
+                    <span class="date-row-label">次日评分</span>
+                    <select id="cond-nscore-op" class="mh-year"><option value=">=">≥</option><option value="<=">≤</option></select>
+                    <input type="number" id="cond-nscore-val" class="mh-year mh-score-val" value="50" step="0.1">
+                    <span class="date-row-label">次日上涨家数</span>
+                    <select id="cond-nup-op" class="mh-year"><option value=">=">≥</option><option value="<=">≤</option></select>
+                    <input type="number" id="cond-nup-val" class="mh-year mh-score-val" value="2000" step="10">
+                    <button class="mini-btn" style="border-color:#3498db;color:#5dade2" onclick="runCond()">▶ 计算概率</button>
+                    <button class="mini-btn" onclick="condReset()">恢复默认</button>
+                </div>
+                <div id="cond-note" class="cond-note"></div>
+            </div>
+
+            <div id="cond-cards" class="cond-cards"></div>
+
+            <div class="hot-themes-box">
+                <div class="hot-themes-head"><h3>③ 次日评分分布（条件组 vs 全样本）</h3></div>
+                <div id="cond-chart" style="width:100%;height:320px;"></div>
+            </div>
+
+            <div class="hot-themes-box">
+                <div class="hot-themes-head">
+                    <h3>④ 匹配到的交易日（可逐条核对）</h3>
+                    <span id="cond-count-label" class="cond-sub"></span>
+                </div>
+                <div class="table-container">
+                    <table class="stock-table cond-table">
+                        <thead><tr>
+                            <th>当日日期</th><th class="num">当日评分</th><th class="num">当日上涨</th>
+                            <th>次日日期</th><th class="num">次日评分</th><th class="num">次日上涨</th>
+                            <th class="num">次日涨/跌</th>
+                        </tr></thead>
+                        <tbody id="cond-body"></tbody>
                     </table>
                 </div>
             </div>

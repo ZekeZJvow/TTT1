@@ -1388,3 +1388,18 @@ body {
 .mh-summary .mh-item b.mid { color: #f39c12; }
 .mh-summary .mh-item b.dim { color: #8a8a8a; }
 
+/* ---------- 模块：条件概率（次日） ---------- */
+.cond-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 14px 0 6px; }
+.cond-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 16px; }
+.cond-card .cc-title { color: #9aa0a6; font-size: .82rem; }
+.cond-card .cc-val { font-size: 1.7rem; font-weight: 800; color: #fff; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+.cond-card .cc-val.mid { color: #f39c12; }
+.cond-card .cc-val.up { color: #e74c3c; }
+.cond-card .cc-val.down { color: #2ecc71; }
+.cond-card .cc-sub { color: #8a8a8a; font-size: .78rem; }
+.cond-card .cc-sub b.up { color: #ff5252; }
+.cond-card .cc-sub b.down { color: #2ecc71; }
+.cond-card .cc-sub b.dim { color: #8a8a8a; }
+.cond-note { color: #b0b0b0; font-size: .85rem; margin-top: 10px; line-height: 1.8; }
+.cond-sub { color: #8a8a8a; font-size: .8rem; }
+.cond-table td, .cond-table th { white-space: nowrap; }
