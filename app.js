@@ -2757,6 +2757,45 @@ function condPass(v, op, x) {
     }
 }
 
+function condYm(dt) {
+    return dt.getFullYear() + '-' + mhPad(dt.getMonth() + 1);
+}
+
+function condInitRange() {
+    // 默认样本范围：最近 12 个月（如 2025-10 ~ 2026-10），只在未填写时设置
+    const s = document.getElementById('cond-start');
+    const e = document.getElementById('cond-end');
+    const now = new Date();
+    if (e && !e.value) e.value = condYm(now);
+    if (s && !s.value) s.value = condYm(new Date(now.getFullYear(), now.getMonth() - 12, 1));
+}
+
+function condRange(months) {
+    const s = document.getElementById('cond-start');
+    const e = document.getElementById('cond-end');
+    const now = new Date();
+    if (!months) {
+        if (s) s.value = '';
+        if (e) e.value = '';
+    } else {
+        if (e) e.value = condYm(now);
+        if (s) s.value = condYm(new Date(now.getFullYear(), now.getMonth() - months, 1));
+    }
+    runCond();
+}
+
+function condInRange(dateStr) {
+    const s = document.getElementById('cond-start');
+    const e = document.getElementById('cond-end');
+    const sm = (s && s.value) || '';
+    const em = (e && e.value) || '';
+    if (!sm && !em) return true;
+    const ym = String(dateStr || '').slice(0, 7);
+    if (sm && ym < sm) return false;
+    if (em && ym > em) return false;
+    return true;
+}
+
 function condSyncAmt() {
     const op = document.getElementById('cond-amt-op');
     const val = document.getElementById('cond-amt-val');
@@ -2860,13 +2899,15 @@ function runCond() {
         return true;
     };
 
-    const pairs = [], allPairs = [];
+    // 全部「当日->次日」配对（次日始终取真实的下一交易日）
+    const allPairs = [];
     for (let i = 0; i < condRows.length - 1; i++) {
-        const p = { cur: condRows[i], next: condRows[i + 1] };
-        allPairs.push(p);
-        if (ok(condRows[i])) pairs.push(p);
+        allPairs.push({ cur: condRows[i], next: condRows[i + 1] });
     }
-    const base = condMetrics(allPairs, nScoreOp, nScoreVal, nUpOp, nUpVal);
+    // 先按「年月样本范围」过滤，再按条件过滤
+    const ranged = allPairs.filter(function (p) { return condInRange(p.cur.date); });
+    const pairs = ranged.filter(function (p) { return ok(p.cur); });
+    const base = condMetrics(ranged, nScoreOp, nScoreVal, nUpOp, nUpVal);
     const cur = condMetrics(pairs, nScoreOp, nScoreVal, nUpOp, nUpVal);
     const n = cur.n;
 
@@ -2877,8 +2918,15 @@ function runCond() {
     if (cAmtOp && cAmtVal !== null) parts.push('成交额 ' + (cAmtOp === '>=' ? '≥' : '≤') + ' ' + cAmtVal + '亿');
     const condTxt = parts.length ? parts.join(' 且 ') : '不限条件（全样本）';
 
+    const _rs = document.getElementById('cond-start');
+    const _re = document.getElementById('cond-end');
+    const _rangeTxt = ((_rs && _rs.value) || (_re && _re.value))
+        ? (((_rs && _rs.value) || '最早') + ' ~ ' + ((_re && _re.value) || '最新'))
+        : '全部历史';
+    const _rl = document.getElementById('cond-range-label');
+    if (_rl) _rl.textContent = '当前样本范围：' + _rangeTxt;
     if (note) {
-        note.innerHTML = '条件：<b>' + escHtml(condTxt) + '</b> ｜ 匹配 <b>' + n + '</b> 天 / 全样本 ' + base.n +
+        note.innerHTML = '条件：<b>' + escHtml(condTxt) + '</b> ｜ 样本范围 <b>' + escHtml(_rangeTxt) + '</b> ｜ 匹配 <b>' + n + '</b> 天 / 区间内 ' + base.n +
             ' 天（占 ' + (base.n ? (n / base.n * 100).toFixed(0) : 0) + '%）' +
             (n < 30 ? ' <span class="warn-text">⚠ 样本偏少（' + n + ' 天），置信区间较宽</span>' : '');
     }
@@ -2909,7 +2957,7 @@ function runCond() {
         cards.innerHTML =
             '<div class="cond-card"><div class="cc-title">匹配样本</div>' +
             '<div class="cc-val">' + n + ' 天</div>' +
-            '<div class="cc-sub">占全样本 ' + (base.n ? (n / base.n * 100).toFixed(0) : 0) + '%</div>' +
+            '<div class="cc-sub">占区间内 ' + (base.n ? (n / base.n * 100).toFixed(0) : 0) + '%</div>' +
             '<div class="cc-sub">次日评分均值 ' + (cur.meanScore === null ? '—' : cur.meanScore.toFixed(1)) +
             '（基准 ' + (base.meanScore === null ? '—' : base.meanScore.toFixed(1)) + '）</div></div>' +
             (cScore ? cScore.html : '') + (cUp ? cUp.html : '') + cUD.html;
@@ -2992,7 +3040,8 @@ function condAutoScan() {
 
     const allPairs = [];
     for (let i = 0; i < condRows.length - 1; i++) allPairs.push({ cur: condRows[i], next: condRows[i + 1] });
-    const base = condMetrics(allPairs, '>=', 2000, '>=', 2000);
+    const ranged = allPairs.filter(function (p) { return condInRange(p.cur.date); });
+    const base = condMetrics(ranged, '>=', 2000, '>=', 2000);
     const TARGET_UP = 2000;
 
     const cands = [];
@@ -3023,7 +3072,7 @@ function condAutoScan() {
 
     const out = [];
     cands.forEach(function (c) {
-        const ps = allPairs.filter(function (p) { return c.test(p.cur); });
+        const ps = ranged.filter(function (p) { return c.test(p.cur); });
         if (ps.length < 25) return;                      // 样本太少的直接跳过
         const m = condMetrics(ps, '>=', TARGET_UP, '>=', TARGET_UP);
         const z = condZ(m.hitsU, m.n, base.hitsU, base.n);
@@ -3079,6 +3128,8 @@ function condReset() {
     set('cond-amt-op', ''); set('cond-amt-val', '');
     set('cond-nscore-op', '>='); set('cond-nscore-val', '50');
     set('cond-nup-op', '>='); set('cond-nup-val', '2000');
+    set('cond-start', ''); set('cond-end', '');
+    condInitRange();
     condSyncAmt();
     const scan = document.getElementById('cond-scan');
     if (scan) scan.innerHTML = '';
@@ -3092,6 +3143,7 @@ async function loadCond(force) {
         if (!r || !r.success) throw new Error((r && r.error) || '暂无数据');
         condRows = r.rows || [];
         condLoaded = true;
+        condInitRange();
         condSyncAmt();
         runCond();
     } catch (e) {

@@ -454,11 +454,25 @@
             <div class="screen-intro">
                 <h2>条件概率 · 次日展望</h2>
                 <p class="screen-desc">
-                    用本地全部历史数据统计：<b>当今天满足某个条件时，次日出现某种结果的概率是多少</b>。
+                    用<b>所选年月区间</b>的样本统计：<b>当今天满足某个条件时，次日出现某种结果的概率是多少</b>。
                     条件可选「行情评分 / 上涨家数 / 成交额」，结果可选「次日评分 / 次日上涨家数 / 次日涨家数多于跌家数」。
-                    每个概率都会和<b>全样本基准</b>对比 —— <b>差值明显为正</b>才说明这个条件有预测力；
+                    每个概率都会和<b>同一区间内全部交易日（基准）</b>对比 —— <b>差值明显为正、且通过显著性检验</b>才说明这个条件有预测力；
                     若与基准几乎相同，说明该条件对次日没有参考价值。样本少于 20 天会提示参考性弱。
                 </p>
+            </div>
+
+            <div class="hot-themes-box">
+                <div class="hot-themes-head"><h3>⓪ 样本范围（按年月）</h3></div>
+                <div class="date-row">
+                    <span class="date-row-label">从</span>
+                    <input type="month" id="cond-start" class="mh-year mh-dateq" title="开始年月">
+                    <span class="range-sep">~</span>
+                    <input type="month" id="cond-end" class="mh-year mh-dateq" title="结束年月">
+                    <button class="mini-btn" onclick="condRange(12)">近1年</button>
+                    <button class="mini-btn" onclick="condRange(24)">近2年</button>
+                    <button class="mini-btn" onclick="condRange(0)">全部</button>
+                </div>
+                <div class="cond-sub" id="cond-range-label"></div>
             </div>
 
             <div class="hot-themes-box">
