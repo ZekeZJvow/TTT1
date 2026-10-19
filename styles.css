@@ -1403,3 +1403,10 @@ body {
 .cond-note { color: #b0b0b0; font-size: .85rem; margin-top: 10px; line-height: 1.8; }
 .cond-sub { color: #8a8a8a; font-size: .8rem; }
 .cond-table td, .cond-table th { white-space: nowrap; }
+
+.cond-verdict { margin: 10px 0 8px; padding: 10px 14px; border-radius: 10px;
+    background: rgba(52,152,219,.10); border: 1px solid rgba(52,152,219,.30);
+    color: #d8dde3; font-size: .86rem; line-height: 1.75; }
+.cond-scan { margin-top: 10px; }
+.cond-scan-title { color: #9aa0a6; font-size: .84rem; margin-bottom: 8px; line-height: 1.7; }
+.cond-scan-hint { color: #8a8a8a; font-size: .85rem; padding: 8px 0; }

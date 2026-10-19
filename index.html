@@ -477,7 +477,7 @@
                     </select>
                     <input type="number" id="cond-up-val" class="mh-year mh-score-val" value="2000" step="10">
                     <span class="date-row-label">成交额(亿)</span>
-                    <select id="cond-amt-op" class="mh-year">
+                    <select id="cond-amt-op" class="mh-year" onchange="condSyncAmt()">
                         <option value="">不限</option>
                         <option value=">=">≥</option><option value="<=">≤</option>
                     </select>
@@ -493,12 +493,15 @@
                     <select id="cond-nup-op" class="mh-year"><option value=">=">≥</option><option value="<=">≤</option></select>
                     <input type="number" id="cond-nup-val" class="mh-year mh-score-val" value="2000" step="10">
                     <button class="mini-btn" style="border-color:#3498db;color:#5dade2" onclick="runCond()">▶ 计算概率</button>
+                    <button class="mini-btn" onclick="condAutoScan()" title="自动试一批常见条件，按「次日上涨家数≥2000」的概率提升排序">🔍 自动扫描</button>
                     <button class="mini-btn" onclick="condReset()">恢复默认</button>
                 </div>
                 <div id="cond-note" class="cond-note"></div>
             </div>
 
             <div id="cond-cards" class="cond-cards"></div>
+            <div id="cond-verdict" class="cond-verdict"></div>
+            <div id="cond-scan" class="cond-scan"></div>
 
             <div class="hot-themes-box">
                 <div class="hot-themes-head"><h3>③ 次日评分分布（条件组 vs 全样本）</h3></div>
@@ -515,7 +518,7 @@
                         <thead><tr>
                             <th>当日日期</th><th class="num">当日评分</th><th class="num">当日上涨</th>
                             <th>次日日期</th><th class="num">次日评分</th><th class="num">次日上涨</th>
-                            <th class="num">次日涨/跌</th>
+                            <th class="num">次日涨/跌</th><th class="num">间隔</th>
                         </tr></thead>
                         <tbody id="cond-body"></tbody>
                     </table>

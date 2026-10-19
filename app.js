@@ -2732,6 +2732,7 @@ window.addEventListener('resize', function () { if (mhChart) mhChart.resize(); }
 let condRows = [];
 let condLoaded = false;
 let condChart = null;
+let condScanRows = [];
 
 function condNum(id) {
     const el = document.getElementById(id);
@@ -2756,31 +2757,67 @@ function condPass(v, op, x) {
     }
 }
 
+function condSyncAmt() {
+    const op = document.getElementById('cond-amt-op');
+    const val = document.getElementById('cond-amt-val');
+    if (!op || !val) return;
+    const off = !op.value;
+    val.disabled = off;
+    if (off) val.value = '';
+    val.style.opacity = off ? '0.4' : '1';
+}
+
+/* Wilson 95% 置信区间 -> [下限%, 上限%] */
+function condWilson(k, n) {
+    if (!n) return null;
+    const z = 1.96, p = k / n;
+    const d = 1 + z * z / n;
+    const c = (p + z * z / (2 * n)) / d;
+    const h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
+    return [Math.max(0, (c - h) * 100), Math.min(100, (c + h) * 100)];
+}
+
+/* 两比例 z 检验（条件组 vs 全样本） */
+function condZ(k1, n1, k2, n2) {
+    if (!n1 || !n2) return null;
+    const p = (k1 + k2) / (n1 + n2);
+    const se = Math.sqrt(p * (1 - p) * (1 / n1 + 1 / n2));
+    if (!se) return null;
+    return (k1 / n1 - k2 / n2) / se;
+}
+
+function condSig(z) {
+    if (z === null || z === undefined) return { txt: '—', cls: 'dim' };
+    if (Math.abs(z) >= 2.58) return { txt: (z > 0 ? '显著↑' : '显著↓') + ' p<1%', cls: z > 0 ? 'up' : 'down' };
+    if (Math.abs(z) >= 1.96) return { txt: (z > 0 ? '显著↑' : '显著↓') + ' p<5%', cls: z > 0 ? 'up' : 'down' };
+    return { txt: '无显著差异', cls: 'dim' };
+}
+
 function condMetrics(pairs, nScoreOp, nScoreVal, nUpOp, nUpVal) {
     const n = pairs.length;
-    const out = { n: n, pScore: null, pUp: null, pUpDown: null,
+    const out = { n: n, hitsS: 0, hitsU: 0, hitsUD: 0,
+                  pScore: null, pUp: null, pUpDown: null,
                   meanScore: null, medianScore: null, buckets: [0, 0, 0, 0, 0] };
     if (!n) return out;
-    let hitS = 0, hitU = 0, hitUD = 0;
     const scores = [];
     for (let i = 0; i < pairs.length; i++) {
         const nx = pairs[i].next;
         const s = nx.score;
         if (s !== null && s !== undefined) {
             scores.push(s);
-            if (nScoreVal !== null && condPass(s, nScoreOp, nScoreVal)) hitS++;
+            if (nScoreVal !== null && condPass(s, nScoreOp, nScoreVal)) out.hitsS++;
             if (s < 40) out.buckets[0]++;
             else if (s < 50) out.buckets[1]++;
             else if (s < 60) out.buckets[2]++;
             else if (s < 70) out.buckets[3]++;
             else out.buckets[4]++;
         }
-        if (nUpVal !== null && condPass(nx.up, nUpOp, nUpVal)) hitU++;
-        if ((nx.up || 0) > (nx.down || 0)) hitUD++;
+        if (nUpVal !== null && condPass(nx.up, nUpOp, nUpVal)) out.hitsU++;
+        if ((nx.up || 0) > (nx.down || 0)) out.hitsUD++;
     }
-    out.pScore = nScoreVal !== null ? hitS / n * 100 : null;
-    out.pUp = nUpVal !== null ? hitU / n * 100 : null;
-    out.pUpDown = hitUD / n * 100;
+    out.pScore = nScoreVal !== null ? out.hitsS / n * 100 : null;
+    out.pUp = nUpVal !== null ? out.hitsU / n * 100 : null;
+    out.pUpDown = out.hitsUD / n * 100;
     if (scores.length) {
         out.meanScore = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;
         const sorted = scores.slice().sort(function (a, b) { return a - b; });
@@ -2789,25 +2826,26 @@ function condMetrics(pairs, nScoreOp, nScoreVal, nUpOp, nUpVal) {
     return out;
 }
 
-function condDiff(cur, base) {
-    // 返回 {txt, cls}：条件组 vs 全样本基准
-    if (cur === null || base === null || cur === undefined || base === undefined) {
-        return { txt: '—', cls: 'dim' };
-    }
+function condPct(v) { return v === null || v === undefined ? '—' : v.toFixed(0) + '%'; }
+
+function condCiTxt(k, n) {
+    const ci = condWilson(k, n);
+    return ci ? '95%CI ' + ci[0].toFixed(0) + '~' + ci[1].toFixed(0) + '%' : '';
+}
+
+function condDiffTxt(cur, base) {
+    if (cur === null || base === null || cur === undefined || base === undefined) return '—';
     const d = cur - base;
-    const cls = Math.abs(d) < 1 ? 'dim' : (d > 0 ? 'up' : 'down');
-    return { txt: (d >= 0 ? '+' : '') + d.toFixed(0) + 'pp', cls: cls };
+    return (d >= 0 ? '+' : '') + d.toFixed(0) + 'pp';
 }
 
 function runCond() {
     const note = document.getElementById('cond-note');
     const cards = document.getElementById('cond-cards');
+    const verdict = document.getElementById('cond-verdict');
     const body = document.getElementById('cond-body');
     const label = document.getElementById('cond-count-label');
-    if (!condRows.length) {
-        if (note) note.textContent = '暂无历史数据';
-        return;
-    }
+    if (!condRows.length) { if (note) note.textContent = '暂无历史数据'; return; }
 
     const cScoreOp = condVal('cond-score-op'), cScoreVal = condNum('cond-score-val');
     const cUpOp = condVal('cond-up-op'), cUpVal = condNum('cond-up-val');
@@ -2828,57 +2866,81 @@ function runCond() {
         allPairs.push(p);
         if (ok(condRows[i])) pairs.push(p);
     }
-
     const base = condMetrics(allPairs, nScoreOp, nScoreVal, nUpOp, nUpVal);
     const cur = condMetrics(pairs, nScoreOp, nScoreVal, nUpOp, nUpVal);
     const n = cur.n;
 
-    // 条件描述
+    const opTxt = function (op) { return ({ '>=': '≥', '>': '>', '<=': '≤', '<': '<' })[op] || ''; };
     const parts = [];
-    if (cScoreVal !== null) parts.push('评分 ' + ({ '>=': '≥', '>': '>', '<=': '≤', '<': '<' }[cScoreOp] || '') + ' ' + cScoreVal);
-    if (cUpVal !== null) parts.push('上涨家数 ' + ({ '>=': '≥', '>': '>', '<=': '≤', '<': '<' }[cUpOp] || '') + ' ' + cUpVal);
+    if (cScoreVal !== null) parts.push('评分 ' + opTxt(cScoreOp) + ' ' + cScoreVal);
+    if (cUpVal !== null) parts.push('上涨家数 ' + opTxt(cUpOp) + ' ' + cUpVal);
     if (cAmtOp && cAmtVal !== null) parts.push('成交额 ' + (cAmtOp === '>=' ? '≥' : '≤') + ' ' + cAmtVal + '亿');
     const condTxt = parts.length ? parts.join(' 且 ') : '不限条件（全样本）';
 
     if (note) {
         note.innerHTML = '条件：<b>' + escHtml(condTxt) + '</b> ｜ 匹配 <b>' + n + '</b> 天 / 全样本 ' + base.n +
             ' 天（占 ' + (base.n ? (n / base.n * 100).toFixed(0) : 0) + '%）' +
-            (n < 20 ? ' <span class="warn-text">⚠ 样本少于 20 天，参考性弱</span>' : '');
+            (n < 30 ? ' <span class="warn-text">⚠ 样本偏少（' + n + ' 天），置信区间较宽</span>' : '');
     }
     if (label) label.textContent = '共 ' + n + ' 条（最多显示 60 条，新→旧）';
 
-    // ---- 卡片 ----
-    if (cards) {
-        const dS = condDiff(cur.pScore, base.pScore);
-        const dU = condDiff(cur.pUp, base.pUp);
-        const dUD = condDiff(cur.pUpDown, base.pUpDown);
-        const dMean = condDiff(cur.meanScore, base.meanScore);
-        const fmtP = function (v) { return v === null ? '—' : v.toFixed(0) + '%'; };
-        const card = function (title, val, sub, cls) {
-            return '<div class="cond-card"><div class="cc-title">' + title + '</div>' +
-                '<div class="cc-val ' + (cls || '') + '">' + val + '</div>' +
-                '<div class="cc-sub">' + (sub || '') + '</div></div>';
+    // 三项目标：概率 + 置信区间 + 与基准的显著性
+    const mk = function (title, k, pv, baseK, baseP) {
+        const z = condZ(k, n, baseK, base.n);
+        const sig = condSig(z);
+        return {
+            html: '<div class="cond-card"><div class="cc-title">' + title + '</div>' +
+                '<div class="cc-val">' + condPct(pv) + '</div>' +
+                '<div class="cc-sub">' + condCiTxt(k, n) + '</div>' +
+                '<div class="cc-sub">基准 ' + condPct(baseP) + ' · <b class="' + sig.cls + '">' +
+                condDiffTxt(pv, baseP) + ' ' + sig.txt + '</b></div></div>',
+            pv: pv, baseP: baseP, sig: sig, title: title
         };
+    };
+    const cScore = nScoreVal !== null
+        ? mk('次日评分 ' + opTxt(nScoreOp) + ' ' + nScoreVal, cur.hitsS, cur.pScore, base.hitsS, base.pScore)
+        : null;
+    const cUp = nUpVal !== null
+        ? mk('次日上涨家数 ' + opTxt(nUpOp) + ' ' + nUpVal, cur.hitsU, cur.pUp, base.hitsU, base.pUp)
+        : null;
+    const cUD = mk('次日涨家数 &gt; 跌家数', cur.hitsUD, cur.pUpDown, base.hitsUD, base.pUpDown);
+
+    if (cards) {
         cards.innerHTML =
-            card('匹配样本', n + ' 天', '占全样本 ' + (base.n ? (n / base.n * 100).toFixed(0) : 0) + '%') +
-            card('次日评分 ' + (nScoreOp === '>=' ? '≥' : '≤') + ' ' + (nScoreVal === null ? '—' : nScoreVal),
-                 fmtP(cur.pScore),
-                 '基准 ' + fmtP(base.pScore) + ' · <b class="' + dS.cls + '">' + dS.txt + '</b>', 'mid') +
-            card('次日上涨家数 ' + (nUpOp === '>=' ? '≥' : '≤') + ' ' + (nUpVal === null ? '—' : nUpVal),
-                 fmtP(cur.pUp),
-                 '基准 ' + fmtP(base.pUp) + ' · <b class="' + dU.cls + '">' + dU.txt + '</b>', 'up') +
-            card('次日涨家数 &gt; 跌家数', fmtP(cur.pUpDown),
-                 '基准 ' + fmtP(base.pUpDown) + ' · <b class="' + dUD.cls + '">' + dUD.txt + '</b>', 'down') +
-            card('次日评分均值', cur.meanScore === null ? '—' : cur.meanScore.toFixed(1),
-                 '基准 ' + (base.meanScore === null ? '—' : base.meanScore.toFixed(1)) +
-                 ' · <b class="' + dMean.cls + '">' + dMean.txt + '</b>', '');
+            '<div class="cond-card"><div class="cc-title">匹配样本</div>' +
+            '<div class="cc-val">' + n + ' 天</div>' +
+            '<div class="cc-sub">占全样本 ' + (base.n ? (n / base.n * 100).toFixed(0) : 0) + '%</div>' +
+            '<div class="cc-sub">次日评分均值 ' + (cur.meanScore === null ? '—' : cur.meanScore.toFixed(1)) +
+            '（基准 ' + (base.meanScore === null ? '—' : base.meanScore.toFixed(1)) + '）</div></div>' +
+            (cScore ? cScore.html : '') + (cUp ? cUp.html : '') + cUD.html;
     }
 
-    // ---- 表格 ----
+    // 结论句
+    if (verdict) {
+        const arr = [cScore, cUp, cUD].filter(Boolean);
+        const sigs = arr.filter(function (x) { return x.sig.cls !== 'dim'; });
+        let txt;
+        if (!n) {
+            txt = '没有符合条件的交易日，换个条件试试。';
+        } else if (sigs.length) {
+            txt = '⚠ 有 ' + sigs.length + ' 项目标与基准存在显著差异（p<5%）：' +
+                sigs.map(function (x) { return x.title.replace(/&gt;/g, '>') + ' ' + x.sig.txt; }).join('；') +
+                '。可重点参考' + (n < 30 ? '，但样本只有 ' + n + ' 天，仍需谨慎。' : '。');
+        } else {
+            txt = '该条件与全样本基准没有显著差异 —— 说明它<b>对次日没有预测力</b>' +
+                (n < 30 ? '；且样本仅 ' + n + ' 天，更不宜据此决策。' : '。');
+        }
+        verdict.innerHTML = txt;
+    }
+
+    // 表格
     if (body) {
         if (!n) {
-            body.innerHTML = '<tr><td colspan="7" class="empty-cell">没有符合条件的交易日</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" class="empty-cell">没有符合条件的交易日</td></tr>';
         } else {
+            const dayGap = function (a, b) {
+                try { return Math.round((new Date(b) - new Date(a)) / 86400000); } catch (e) { return ''; }
+            };
             body.innerHTML = pairs.slice().reverse().slice(0, 60).map(function (p) {
                 const nx = p.next;
                 const cls = function (v) { return v == null ? 'dim' : (v >= 70 ? 'up-strong' : (v >= 50 ? 'mid' : 'down')); };
@@ -2890,12 +2952,13 @@ function runCond() {
                     '<td class="num ' + cls(nx.score) + '">' + (nx.score == null ? '—' : nx.score) + '</td>' +
                     '<td class="num">' + nx.up + '</td>' +
                     '<td class="num dim">' + nx.up + ' / ' + nx.down + '</td>' +
+                    '<td class="num dim">' + dayGap(p.cur.date, nx.date) + ' 天</td>' +
                     '</tr>';
             }).join('');
         }
     }
 
-    // ---- 图表：次日评分分布 ----
+    // 图表
     const box = document.getElementById('cond-chart');
     if (!box) return;
     if (!condChart) condChart = echarts.init(box);
@@ -2921,6 +2984,94 @@ function runCond() {
     }, true);
 }
 
+/* ---------------- 自动扫描：找出「显著提升次日上涨概率」的条件 ---------------- */
+function condAutoScan() {
+    const box = document.getElementById('cond-scan');
+    if (!box) return;
+    if (!condRows.length) { box.innerHTML = '<div class="cond-scan-hint">暂无数据</div>'; return; }
+
+    const allPairs = [];
+    for (let i = 0; i < condRows.length - 1; i++) allPairs.push({ cur: condRows[i], next: condRows[i + 1] });
+    const base = condMetrics(allPairs, '>=', 2000, '>=', 2000);
+    const TARGET_UP = 2000;
+
+    const cands = [];
+    [30, 35, 40, 45, 55, 60, 65, 70].forEach(function (v) {
+        cands.push({ label: '评分 ≤ ' + v, scoreOp: '<=', scoreVal: v, upOp: null, upVal: null,
+                     test: function (r) { return (r.score || 0) <= v; } });
+        cands.push({ label: '评分 ≥ ' + v, scoreOp: '>=', scoreVal: v, upOp: null, upVal: null,
+                     test: function (r) { return (r.score || 0) >= v; } });
+    });
+    [800, 1200, 1600, 2000, 2500, 3000, 3500, 4000].forEach(function (v) {
+        cands.push({ label: '上涨家数 ≤ ' + v, scoreOp: null, scoreVal: null, upOp: '<=', upVal: v,
+                     test: function (r) { return (r.up || 0) <= v; } });
+        cands.push({ label: '上涨家数 ≥ ' + v, scoreOp: null, scoreVal: null, upOp: '>=', upVal: v,
+                     test: function (r) { return (r.up || 0) >= v; } });
+    });
+    [30, 35, 40].forEach(function (s) {
+        [800, 1200, 1600].forEach(function (u) {
+            cands.push({ label: '评分 ≤ ' + s + ' 且 上涨 ≤ ' + u, scoreOp: '<=', scoreVal: s, upOp: '<=', upVal: u,
+                         test: function (r) { return (r.score || 0) <= s && (r.up || 0) <= u; } });
+        });
+    });
+    [60, 65, 70].forEach(function (s) {
+        [3000, 3500, 4000].forEach(function (u) {
+            cands.push({ label: '评分 ≥ ' + s + ' 且 上涨 ≥ ' + u, scoreOp: '>=', scoreVal: s, upOp: '>=', upVal: u,
+                         test: function (r) { return (r.score || 0) >= s && (r.up || 0) >= u; } });
+        });
+    });
+
+    const out = [];
+    cands.forEach(function (c) {
+        const ps = allPairs.filter(function (p) { return c.test(p.cur); });
+        if (ps.length < 25) return;                      // 样本太少的直接跳过
+        const m = condMetrics(ps, '>=', TARGET_UP, '>=', TARGET_UP);
+        const z = condZ(m.hitsU, m.n, base.hitsU, base.n);
+        if (z === null || Math.abs(z) < 1.96) return;     // 只保留显著
+        out.push({ label: c.label, n: m.n, p: m.pUp, lift: m.pUp - base.pUp, z: z,
+                   scoreOp: c.scoreOp, scoreVal: c.scoreVal, upOp: c.upOp, upVal: c.upVal });
+    });
+    out.sort(function (a, b) { return Math.abs(b.lift) - Math.abs(a.lift); });
+    condScanRows = out.slice(0, 8);
+
+    if (!out.length) {
+        box.innerHTML = '<div class="cond-scan-hint">扫描了 ' + cands.length + ' 个常见条件，' +
+            '没有发现「与基准有显著差异（p<5%）且样本≥25天」的条件。</div>';
+        return;
+    }
+    let html = '<div class="cond-scan-title">🔍 扫描 ' + cands.length + ' 个条件，以下 ' + condScanRows.length +
+        ' 个对「次日上涨家数 ≥ ' + TARGET_UP + '」有显著提升 / 降低（基准 ' + condPct(base.pUp) + '，样本≥25天）：</div>' +
+        '<div class="table-container"><table class="stock-table cond-table"><thead><tr>' +
+        '<th>条件</th><th class="num">样本</th><th class="num">次日上涨≥' + TARGET_UP + '</th>' +
+        '<th class="num">较基准</th><th class="num">显著性</th><th></th></tr></thead><tbody>';
+    condScanRows.forEach(function (r, i) {
+        const sig = condSig(r.z);
+        html += '<tr><td>' + escHtml(r.label) + '</td>' +
+            '<td class="num">' + r.n + '</td>' +
+            '<td class="num ' + (r.p >= base.pUp ? 'up' : 'down') + '">' + condPct(r.p) + '</td>' +
+            '<td class="num ' + (r.lift >= 0 ? 'up' : 'down') + '">' + (r.lift >= 0 ? '+' : '') + r.lift.toFixed(0) + 'pp</td>' +
+            '<td class="dim">' + sig.txt + '</td>' +
+            '<td><button class="mini-btn" onclick="condApplyScan(' + i + ')">套用</button></td></tr>';
+    });
+    html += '</tbody></table></div>';
+    box.innerHTML = html;
+}
+
+function condApplyScan(i) {
+    const r = condScanRows[i];
+    if (!r) return;
+    const set = function (id, v) { const el = document.getElementById(id); if (el) el.value = v; };
+    set('cond-score-op', r.scoreOp || '>=');
+    set('cond-score-val', r.scoreVal === null || r.scoreVal === undefined ? '' : r.scoreVal);
+    set('cond-up-op', r.upOp || '>=');
+    set('cond-up-val', r.upVal === null || r.upVal === undefined ? '' : r.upVal);
+    set('cond-amt-op', ''); set('cond-amt-val', '');
+    condSyncAmt();
+    runCond();
+    const el = document.getElementById('cond-note');
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+}
+
 function condReset() {
     const set = function (id, v) { const el = document.getElementById(id); if (el) el.value = v; };
     set('cond-score-op', '>='); set('cond-score-val', '50');
@@ -2928,6 +3079,9 @@ function condReset() {
     set('cond-amt-op', ''); set('cond-amt-val', '');
     set('cond-nscore-op', '>='); set('cond-nscore-val', '50');
     set('cond-nup-op', '>='); set('cond-nup-val', '2000');
+    condSyncAmt();
+    const scan = document.getElementById('cond-scan');
+    if (scan) scan.innerHTML = '';
     runCond();
 }
 
@@ -2938,6 +3092,7 @@ async function loadCond(force) {
         if (!r || !r.success) throw new Error((r && r.error) || '暂无数据');
         condRows = r.rows || [];
         condLoaded = true;
+        condSyncAmt();
         runCond();
     } catch (e) {
         const note = document.getElementById('cond-note');
