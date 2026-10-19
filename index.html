@@ -504,12 +504,10 @@
 
                 <div class="hot-themes-head" style="margin-top:14px"><h3>② 次日目标</h3></div>
                 <div class="date-row">
-                    <span class="date-row-label">次日评分</span>
-                    <select id="cond-nscore-op" class="mh-year"><option value=">=">≥</option><option value="<=">≤</option></select>
-                    <input type="number" id="cond-nscore-val" class="mh-year mh-score-val" value="50" step="0.1">
-                    <span class="date-row-label">次日上涨家数</span>
-                    <select id="cond-nup-op" class="mh-year"><option value=">=">≥</option><option value="<=">≤</option></select>
-                    <input type="number" id="cond-nup-val" class="mh-year mh-score-val" value="2000" step="10">
+                    <span class="date-row-label">次日评分 ≥</span>
+                    <input type="number" id="cond-nscore-val" class="mh-year mh-score-val" value="50" step="0.1" title="固定为大于等于">
+                    <span class="date-row-label">次日上涨家数 ≥</span>
+                    <input type="number" id="cond-nup-val" class="mh-year mh-score-val" value="3000" step="10" title="固定为大于等于">
                     <button class="mini-btn" style="border-color:#3498db;color:#5dade2" onclick="runCond()">▶ 计算概率</button>
                     <button class="mini-btn" onclick="condAutoScan()" title="自动试一批常见条件，按「次日上涨家数≥2000」的概率提升排序">🔍 自动扫描</button>
                     <button class="mini-btn" onclick="condReset()">恢复默认</button>

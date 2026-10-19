@@ -2954,8 +2954,8 @@ function runCond() {
     const cScoreOp = condScoreOp, cScoreVal = condScoreVal;
     const cUpOp = condUpOp, cUpVal = condUpVal;
     const cAmtOp = condVal('cond-amt-op'), cAmtVal = condNum('cond-amt-val');
-    const nScoreOp = condVal('cond-nscore-op'), nScoreVal = condNum('cond-nscore-val');
-    const nUpOp = condVal('cond-nup-op'), nUpVal = condNum('cond-nup-val');
+    const nScoreOp = '>=', nScoreVal = condNum('cond-nscore-val');   // 次日目标固定为「大于等于」
+    const nUpOp = '>=', nUpVal = condNum('cond-nup-val');
 
     const ok = function (r) {
         if (cScoreVal !== null && !condPass(r.score, cScoreOp, cScoreVal)) return false;
@@ -3106,8 +3106,8 @@ function condAutoScan() {
     const allPairs = [];
     for (let i = 0; i < condRows.length - 1; i++) allPairs.push({ cur: condRows[i], next: condRows[i + 1] });
     const ranged = allPairs.filter(function (p) { return condInRange(p.cur.date); });
-    const base = condMetrics(ranged, '>=', 2000, '>=', 2000);
-    const TARGET_UP = 2000;
+    const TARGET_UP = condNum('cond-nup-val') || 3000;
+    const base = condMetrics(ranged, '>=', TARGET_UP, '>=', TARGET_UP);
 
     const cands = [];
     [30, 35, 40, 45, 55, 60, 65, 70].forEach(function (v) {
@@ -3193,8 +3193,8 @@ function condReset() {
     condUpOp = '>='; condUpVal = 2000;
     condSyncChips();
     set('cond-amt-op', ''); set('cond-amt-val', '');
-    set('cond-nscore-op', '>='); set('cond-nscore-val', '50');
-    set('cond-nup-op', '>='); set('cond-nup-val', '2000');
+    set('cond-nscore-val', '50');
+    set('cond-nup-val', '3000');
     set('cond-start', ''); set('cond-end', '');
     condInitRange();
     condSyncAmt();
