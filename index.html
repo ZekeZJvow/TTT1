@@ -456,6 +456,7 @@
                 <p class="screen-desc">
                     用<b>所选年月区间</b>的样本统计：<b>当今天满足某个条件时，次日出现某种结果的概率是多少</b>。
                     条件可选「行情评分 / 上涨家数 / 成交额」，结果可选「次日评分 / 次日上涨家数 / 次日涨家数多于跌家数」。
+                    <b>评分/家数按档位区间筛选</b>（如选 40 分 = 40~50 分；选 2000 = 2000~2500 只），<b>可多选合并</b>（选 1000 和 2000 = 1000~2500）。
                     每个概率都会和<b>同一区间内全部交易日（基准）</b>对比 —— <b>差值明显为正、且通过显著性检验</b>才说明这个条件有预测力；
                     若与基准几乎相同，说明该条件对次日没有参考价值。样本少于 20 天会提示参考性弱。
                 </p>
@@ -479,18 +480,10 @@
                 <div class="hot-themes-head"><h3>① 当日条件</h3></div>
                 <div class="date-row">
                     <span class="date-row-label">行情评分</span>
-                    <div class="cond-ops" id="cond-score-ops">
-                        <button class="op-btn active" data-op=">=" onclick="condSetOp('score','>=')">≥</button>
-                        <button class="op-btn" data-op="<" onclick="condSetOp('score','<')">＜</button>
-                    </div>
                     <div class="cond-chips" id="cond-score-chips"></div>
                 </div>
                 <div class="date-row">
                     <span class="date-row-label">上涨家数</span>
-                    <div class="cond-ops" id="cond-up-ops">
-                        <button class="op-btn active" data-op=">=" onclick="condSetOp('up','>=')">≥</button>
-                        <button class="op-btn" data-op="<" onclick="condSetOp('up','<')">＜</button>
-                    </div>
                     <div class="cond-chips" id="cond-up-chips"></div>
                 </div>
                 <div class="date-row">
