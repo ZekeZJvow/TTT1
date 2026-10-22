@@ -1424,3 +1424,35 @@ body {
 .chip-btn:hover { border-color: #3498db; color: #fff; }
 .chip-btn.active { background: linear-gradient(135deg,#3498db,#2980b9); border-color: #3498db;
     color: #fff; font-weight: 600; }
+
+/* ---------- 条件概率：首屏紧凑布局 ---------- */
+.cond-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.cond-head h2 { color: #fff; font-size: 1.25rem; margin: 0; }
+.cond-head-actions { display: flex; gap: 8px; }
+.cond-help { margin: 0 0 12px; border-radius: 10px; background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08); padding: 8px 14px; }
+.cond-help summary { cursor: pointer; color: #9aa0a6; font-size: .85rem; }
+.cond-help p { color: #b0b0b0; font-size: .85rem; line-height: 1.75; margin-top: 8px; }
+.cond-help b { color: #5dade2; }
+.cond-box { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px; padding: 10px 16px; margin-bottom: 12px; }
+.cond-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 0; }
+.cond-row .date-row-label { min-width: 46px; color: #9aa0a6; font-size: .85rem; }
+.cond-sep { width: 1px; height: 18px; background: rgba(255,255,255,.15); margin: 0 4px; }
+.cond-stats { display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: baseline; margin: 2px 0 4px; }
+.cond-stat { display: inline-flex; align-items: baseline; gap: 8px; }
+.cond-stat i { color: #9aa0a6; font-style: normal; font-size: .82rem; }
+.cond-stat b { color: #fff; font-size: 1.15rem; font-weight: 700; }
+.cond-stat b.up { color: #ff5252; }
+.cond-stat b.down { color: #2ecc71; }
+.cond-ladder-box { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px; padding: 12px 16px 6px; margin-bottom: 12px; }
+.cond-ladder-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 2px; }
+.cond-ladder-head h3 { color: #fff; font-size: 1rem; }
+.cond-two-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cond-chart { width: 100%; height: 260px; }
+.cond-details { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 10px; padding: 10px 16px; margin-bottom: 10px; }
+.cond-details summary { cursor: pointer; color: #b0b0b0; font-size: .88rem; }
+.cond-details[open] summary { color: #5dade2; margin-bottom: 10px; }
+@media (max-width: 900px) { .cond-two-charts { grid-template-columns: 1fr; } }

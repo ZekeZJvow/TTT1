@@ -2945,9 +2945,38 @@ function condDiffTxt(cur, base) {
     return (d >= 0 ? '+' : '') + d.toFixed(0) + 'pp';
 }
 
+function renderLadderChart(elId, rows, title) {
+    const el = document.getElementById(elId);
+    if (!el || !rows || !rows.length) return;
+    let ch = echarts.getInstanceByDom(el);
+    if (!ch) ch = echarts.init(el);
+    ch.setOption({
+        backgroundColor: 'transparent',
+        title: { text: title, left: 0, top: 0, textStyle: { color: '#d8dde3', fontSize: 12, fontWeight: 600 } },
+        tooltip: { trigger: 'axis', valueFormatter: function (v) { return v + '%'; } },
+        legend: { data: ['条件组', '基准'], right: 0, top: 0, textStyle: { color: '#a0a0a0', fontSize: 11 } },
+        grid: { left: 44, right: 14, top: 40, bottom: 26 },
+        xAxis: { type: 'category', data: rows.map(function (r) { return '≥' + r.t; }),
+                 axisLabel: { color: '#9aa0a6', fontSize: 10 }, axisLine: { lineStyle: { color: '#444' } } },
+        yAxis: { type: 'value', min: 0, max: 100,
+                 axisLabel: { color: '#9aa0a6', fontSize: 10, formatter: '{value}%' },
+                 splitLine: { lineStyle: { color: 'rgba(255,255,255,.06)' } } },
+        series: [
+            { name: '条件组', type: 'line', smooth: true, symbolSize: 5,
+              data: rows.map(function (r) { return +(r.p || 0).toFixed(1); }),
+              itemStyle: { color: '#f39c12' }, lineStyle: { width: 2.5 },
+              label: { show: true, position: 'top', fontSize: 9, color: '#f5b041',
+                       formatter: function (pp) { return Math.round(pp.value) + '%'; } } },
+            { name: '基准', type: 'line', smooth: true, symbolSize: 4,
+              data: rows.map(function (r) { return +(r.pb || 0).toFixed(1); }),
+              itemStyle: { color: '#5dade2' }, lineStyle: { width: 1.5, type: 'dashed' } }
+        ]
+    }, true);
+    ch.resize();
+}
+
 function runCond() {
     const note = document.getElementById('cond-note');
-    const cards = document.getElementById('cond-cards');
     const verdict = document.getElementById('cond-verdict');
     const label = document.getElementById('cond-count-label');
     if (!condRows.length) { if (note) note.textContent = '暂无历史数据'; return; }
@@ -3032,19 +3061,20 @@ function runCond() {
     fillLadder('cond-ladder-score', scRows, '分');
 
     const sigUD = condSig(condZ(cur.hitsUD, n, base.hitsUD, base.n));
-    if (cards) {
-        cards.innerHTML =
-            '<div class="cond-card"><div class="cc-title">匹配样本</div>' +
-            '<div class="cc-val">' + n + ' 天</div>' +
-            '<div class="cc-sub">占区间内 ' + (base.n ? (n / base.n * 100).toFixed(0) : 0) + '%</div>' +
-            '<div class="cc-sub">次日评分均值 ' + (cur.meanScore === null ? '—' : cur.meanScore.toFixed(1)) +
-            '（基准 ' + (base.meanScore === null ? '—' : base.meanScore.toFixed(1)) + '）</div></div>' +
-            '<div class="cond-card"><div class="cc-title">次日涨家数 &gt; 跌家数</div>' +
-            '<div class="cc-val">' + condPct(cur.pUpDown) + '</div>' +
-            '<div class="cc-sub">' + condCiTxt(cur.hitsUD, n) + '</div>' +
-            '<div class="cc-sub">基准 ' + condPct(base.pUpDown) + ' · <b class="' + sigUD.cls + '">' +
-            condDiffTxt(cur.pUpDown, base.pUpDown) + ' ' + sigUD.txt + '</b></div></div>';
+    const sn = document.getElementById('cond-stat-n');
+    if (sn) sn.textContent = n + ' 天' + (base.n ? '（占 ' + (n / base.n * 100).toFixed(0) + '%）' : '');
+    const su = document.getElementById('cond-stat-ud');
+    if (su) {
+        su.textContent = condPct(cur.pUpDown);
+        su.className = (sigUD.cls === 'dim') ? '' : sigUD.cls;
+        su.title = '基准 ' + condPct(base.pUpDown) + ' · ' + condDiffTxt(cur.pUpDown, base.pUpDown) + ' ' + sigUD.txt;
     }
+    const sm = document.getElementById('cond-stat-mean');
+    if (sm) sm.textContent = (cur.meanScore === null ? '—' : cur.meanScore.toFixed(1)) +
+        '（基准 ' + (base.meanScore === null ? '—' : base.meanScore.toFixed(1)) + '）';
+
+    renderLadderChart('cond-ladder-chart-up', upRows, '次日上涨家数 ≥ 阈值');
+    renderLadderChart('cond-ladder-chart-score', scRows, '次日行情评分 ≥ 阈值');
 
     if (verdict) {
         const all = upRows.map(function (r) { return { kind: 'up', r: r }; })
@@ -3070,6 +3100,13 @@ function runCond() {
     const box = document.getElementById('cond-chart');
     if (!box) return;
     if (!condChart) condChart = echarts.init(box);
+    const dd = document.getElementById('cond-dist-details');
+    if (dd && !dd.getAttribute('data-bound')) {
+        dd.setAttribute('data-bound', '1');
+        dd.addEventListener('toggle', function () {
+            if (dd.open && condChart) setTimeout(function () { condChart.resize(); }, 60);
+        });
+    }
     const labels = ['<40', '40~50', '50~60', '60~70', '≥70'];
     const pc = cur.buckets.map(function (v) { return n ? +(v / n * 100).toFixed(1) : 0; });
     const pb = base.buckets.map(function (v) { return base.n ? +(v / base.n * 100).toFixed(1) : 0; });
@@ -3207,4 +3244,11 @@ async function loadCond(force) {
         if (note) note.textContent = '加载失败：' + e.message;
     }
 }
-window.addEventListener('resize', function () { if (condChart) condChart.resize(); });
+window.addEventListener('resize', function () {
+    if (condChart) condChart.resize();
+    ['cond-ladder-chart-up', 'cond-ladder-chart-score'].forEach(function (id) {
+        const el = document.getElementById(id);
+        const ch = el ? echarts.getInstanceByDom(el) : null;
+        if (ch) ch.resize();
+    });
+});

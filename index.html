@@ -451,66 +451,76 @@
 
         <!-- ============ 面板七：条件概率（次日） ============ -->
         <section id="panel-cond" class="panel hidden">
-            <div class="screen-intro">
-                <h2>条件概率 · 次日展望</h2>
-                <p class="screen-desc">
-                    用<b>所选年月区间</b>的样本统计：<b>当今天满足某个条件时，次日出现某种结果的概率是多少</b>。
-                    条件可选「行情评分 / 上涨家数 / 成交额」，结果可选「次日评分 / 次日上涨家数 / 次日涨家数多于跌家数」。
-                    <b>评分/家数按档位区间筛选</b>（如选 40 分 = 40~50 分；选 2000 = 2000~2500 只），<b>可多选合并</b>（选 1000 和 2000 = 1000~2500）。
-                    每个概率都会和<b>同一区间内全部交易日（基准）</b>对比 —— <b>差值明显为正、且通过显著性检验</b>才说明这个条件有预测力；
-                    若与基准几乎相同，说明该条件对次日没有参考价值。样本少于 20 天会提示参考性弱。
-                </p>
+            <!-- 顶部：标题 + 操作 + 说明（折叠，不占首屏） -->
+            <div class="cond-head">
+                <h2>🔮 条件概率 · 次日展望</h2>
+                <div class="cond-head-actions">
+                    <button class="mini-btn" onclick="condAutoScan()" title="自动试一批当日条件，找出对次日有显著影响的条件">🔍 自动扫描</button>
+                    <button class="mini-btn" onclick="condReset()">恢复默认</button>
+                </div>
             </div>
+            <details class="cond-help">
+                <summary>口径与用法说明</summary>
+                <p>
+                    用<b>所选年月区间</b>的样本统计：今天满足某个条件时，次日出现某种结果的概率。
+                    <b>评分 / 家数按档位区间</b>筛选（选 40 分 = 40~50 分；选 2000 = 2000~2500 只），可<b>多选合并</b>（选 1000 和 2000 = 1000~2500）。
+                    所有概率都与<b>同一区间的全部交易日（基准）</b>对比：<b>差值明显为正、且通过显著性检验</b>才说明有预测力。样本少于 20 天会提示参考性弱。
+                </p>
+            </details>
 
-            <div class="hot-themes-box">
-                <div class="hot-themes-head"><h3>⓪ 样本范围（按年月）</h3></div>
-                <div class="date-row">
-                    <span class="date-row-label">从</span>
+            <!-- 条件条：样本 / 成交额 / 评分 / 家数 -->
+            <div class="cond-box">
+                <div class="cond-row">
+                    <span class="date-row-label">样本</span>
                     <input type="month" id="cond-start" class="mh-year mh-dateq" title="开始年月">
                     <span class="range-sep">~</span>
                     <input type="month" id="cond-end" class="mh-year mh-dateq" title="结束年月">
                     <button class="mini-btn" onclick="condRange(12)">近1年</button>
                     <button class="mini-btn" onclick="condRange(24)">近2年</button>
                     <button class="mini-btn" onclick="condRange(0)">全部</button>
-                </div>
-                <div class="cond-sub" id="cond-range-label"></div>
-            </div>
-
-            <div class="hot-themes-box">
-                <div class="hot-themes-head"><h3>① 当日条件</h3></div>
-                <div class="date-row">
-                    <span class="date-row-label">行情评分</span>
-                    <div class="cond-chips" id="cond-score-chips"></div>
-                </div>
-                <div class="date-row">
-                    <span class="date-row-label">上涨家数</span>
-                    <div class="cond-chips" id="cond-up-chips"></div>
-                </div>
-                <div class="date-row">
+                    <span class="cond-sep"></span>
                     <span class="date-row-label">成交额(亿)</span>
                     <select id="cond-amt-op" class="mh-year" onchange="condSyncAmt()">
                         <option value="">不限</option>
-                        <option value=">=">≥</option><option value="<=">≤</option>
+                        <option value=">=">≥</option>
+                        <option value="<=">≤</option>
                     </select>
                     <input type="number" id="cond-amt-val" class="mh-year mh-score-val" placeholder="不限" step="100">
                 </div>
-
-                <div class="hot-themes-head" style="margin-top:14px"><h3>② 次日结果（自动分析全部档位）</h3></div>
-                <div class="date-row">
-                    <button class="mini-btn" onclick="condAutoScan()" title="自动试一批当日条件，找出对次日有显著影响的条件">🔍 自动扫描条件</button>
-                    <button class="mini-btn" onclick="condReset()">恢复默认</button>
+                <div class="cond-row">
+                    <span class="date-row-label">评分</span>
+                    <div class="cond-chips" id="cond-score-chips"></div>
                 </div>
-                <div id="cond-note" class="cond-note"></div>
+                <div class="cond-row">
+                    <span class="date-row-label">家数</span>
+                    <div class="cond-chips" id="cond-up-chips"></div>
+                </div>
             </div>
 
-            <div id="cond-cards" class="cond-cards"></div>
+            <!-- 结论条 + 三个关键数值 -->
             <div id="cond-verdict" class="cond-verdict"></div>
+            <div class="cond-stats">
+                <span class="cond-stat"><i>匹配样本</i><b id="cond-stat-n">—</b></span>
+                <span class="cond-stat"><i>次日涨家数 &gt; 跌家数</i><b id="cond-stat-ud">—</b></span>
+                <span class="cond-stat"><i>次日评分均值</i><b id="cond-stat-mean">—</b></span>
+            </div>
+            <div id="cond-note" class="cond-note"></div>
 
-            <div class="hot-themes-box">
-                <div class="hot-themes-head">
-                    <h3>③ 次日上涨家数 · 各档位概率</h3>
-                    <span class="cond-sub">满足当日条件的样本里，次日上涨家数 ≥ 各档位的概率</span>
+            <!-- 首屏核心：概率阶梯图 -->
+            <div class="cond-ladder-box">
+                <div class="cond-ladder-head">
+                    <h3>📈 概率阶梯（实线=条件组，虚线=基准）</h3>
+                    <span class="cond-sub">横轴=次日阈值，纵轴=概率</span>
                 </div>
+                <div class="cond-two-charts">
+                    <div id="cond-ladder-chart-up" class="cond-chart"></div>
+                    <div id="cond-ladder-chart-score" class="cond-chart"></div>
+                </div>
+            </div>
+
+            <!-- 折叠：明细表 -->
+            <details class="cond-details">
+                <summary>📋 各档位概率明细（可逐项核对）</summary>
                 <div class="table-container">
                     <table class="stock-table cond-table">
                         <thead><tr>
@@ -520,14 +530,7 @@
                         <tbody id="cond-ladder-up"></tbody>
                     </table>
                 </div>
-            </div>
-
-            <div class="hot-themes-box">
-                <div class="hot-themes-head">
-                    <h3>④ 次日行情评分 · 各档位概率</h3>
-                    <span class="cond-sub">满足当日条件的样本里，次日行情评分 ≥ 各档位的概率</span>
-                </div>
-                <div class="table-container">
+                <div class="table-container" style="margin-top:12px">
                     <table class="stock-table cond-table">
                         <thead><tr>
                             <th>次日行情评分</th><th class="num">概率</th><th class="num">95%CI</th>
@@ -536,15 +539,15 @@
                         <tbody id="cond-ladder-score"></tbody>
                     </table>
                 </div>
-            </div>
+            </details>
+
+            <!-- 折叠：分布图 -->
+            <details class="cond-details" id="cond-dist-details">
+                <summary>📊 次日评分分布（条件组 vs 全样本）</summary>
+                <div id="cond-chart" style="width:100%;height:300px;margin-top:10px"></div>
+            </details>
 
             <div id="cond-scan" class="cond-scan"></div>
-
-            <div class="hot-themes-box">
-                <div class="hot-themes-head"><h3>⑤ 次日评分分布（条件组 vs 全样本）</h3></div>
-                <div id="cond-chart" style="width:100%;height:320px;"></div>
-            </div>
-
         </section>
 
         <!-- ============ 面板四：数据管理（已关闭：不在页面显示；要恢复删掉 panel-db 上的 style） ============ -->
