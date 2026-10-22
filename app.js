@@ -2955,8 +2955,6 @@ function runCond() {
     const cScoreR = condRangeOf(COND_SCORE_CHOICES, condScoreSel);
     const cUpR = condRangeOf(COND_UP_CHOICES, condUpSel);
     const cAmtOp = condVal('cond-amt-op'), cAmtVal = condNum('cond-amt-val');
-    const nScoreOp = '>=', nScoreVal = condNum('cond-nscore-val');
-    const nUpOp = '>=', nUpVal = condNum('cond-nup-val');
 
     const ok = function (r) {
         if (!condInRangeNum(r.score, cScoreR)) return false;
@@ -2971,8 +2969,8 @@ function runCond() {
     }
     const ranged = allPairs.filter(function (p) { return condInRange(p.cur.date); });
     const pairs = ranged.filter(function (p) { return ok(p.cur); });
-    const base = condMetrics(ranged, nScoreOp, nScoreVal, nUpOp, nUpVal);
-    const cur = condMetrics(pairs, nScoreOp, nScoreVal, nUpOp, nUpVal);
+    const base = condMetrics(ranged, '>=', null, '>=', null);
+    const cur = condMetrics(pairs, '>=', null, '>=', null);
     const n = cur.n;
 
     const parts = [];
@@ -2996,24 +2994,44 @@ function runCond() {
     }
     if (label) label.textContent = '共 ' + n + ' 条';
 
-    const mk = function (title, k, pv, baseK, baseP) {
-        const z = condZ(k, n, baseK, base.n);
-        const sig = condSig(z);
-        return {
-            html: '<div class="cond-card"><div class="cc-title">' + title + '</div>' +
-                '<div class="cc-val">' + condPct(pv) + '</div>' +
-                '<div class="cc-sub">' + condCiTxt(k, n) + '</div>' +
-                '<div class="cc-sub">基准 ' + condPct(baseP) + ' · <b class="' + sig.cls + '">' +
-                condDiffTxt(pv, baseP) + ' ' + sig.txt + '</b></div></div>',
-            pv: pv, baseP: baseP, sig: sig, title: title
-        };
+    // ③④ 阶梯：把每个档位的概率都算出来
+    const ladder = function (thrs, get) {
+        return thrs.map(function (t) {
+            const k = pairs.reduce(function (a, p) { return a + (get(p) >= t ? 1 : 0); }, 0);
+            const kb = ranged.reduce(function (a, p) { return a + (get(p) >= t ? 1 : 0); }, 0);
+            const pv = n ? k / n * 100 : 0;
+            const pbv = base.n ? kb / base.n * 100 : 0;
+            const z = condZ(k, n, kb, base.n);
+            return { t: t, k: k, p: pv, pb: pbv, z: z, sig: condSig(z), ci: condWilson(k, n) };
+        });
     };
-    const cScore = nScoreVal !== null
-        ? mk('次日评分 ≥ ' + nScoreVal, cur.hitsS, cur.pScore, base.hitsS, base.pScore) : null;
-    const cUp = nUpVal !== null
-        ? mk('次日上涨家数 ≥ ' + nUpVal, cur.hitsU, cur.pUp, base.hitsU, base.pUp) : null;
-    const cUD = mk('次日涨家数 &gt; 跌家数', cur.hitsUD, cur.pUpDown, base.hitsUD, base.pUpDown);
+    const upRows = ladder([500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000],
+        function (p) { return p.next.up || 0; });
+    const scRows = ladder([30, 40, 50, 60, 70],
+        function (p) {
+            const v = p.next.score;
+            return (v === null || v === undefined) ? -1 : v;
+        });
 
+    const fillLadder = function (tbodyId, rows, unit) {
+        const tb = document.getElementById(tbodyId);
+        if (!tb) return;
+        tb.innerHTML = rows.map(function (r) {
+            const d = r.p - r.pb;
+            const dcls = (d > 0.5) ? 'up' : ((d < -0.5) ? 'down' : 'dim');
+            return '<tr>' +
+                '<td>≥ ' + r.t + ' ' + unit + '</td>' +
+                '<td class="num up-strong">' + (n ? r.p.toFixed(0) + '%' : '—') + '</td>' +
+                '<td class="num dim">' + (r.ci ? r.ci[0].toFixed(0) + '~' + r.ci[1].toFixed(0) + '%' : '—') + '</td>' +
+                '<td class="num dim">' + r.pb.toFixed(0) + '%</td>' +
+                '<td class="num ' + dcls + '">' + (d >= 0 ? '+' : '') + d.toFixed(0) + 'pp</td>' +
+                '<td class="' + r.sig.cls + '">' + r.sig.txt + '</td></tr>';
+        }).join('');
+    };
+    fillLadder('cond-ladder-up', upRows, '只');
+    fillLadder('cond-ladder-score', scRows, '分');
+
+    const sigUD = condSig(condZ(cur.hitsUD, n, base.hitsUD, base.n));
     if (cards) {
         cards.innerHTML =
             '<div class="cond-card"><div class="cc-title">匹配样本</div>' +
@@ -3021,22 +3039,30 @@ function runCond() {
             '<div class="cc-sub">占区间内 ' + (base.n ? (n / base.n * 100).toFixed(0) : 0) + '%</div>' +
             '<div class="cc-sub">次日评分均值 ' + (cur.meanScore === null ? '—' : cur.meanScore.toFixed(1)) +
             '（基准 ' + (base.meanScore === null ? '—' : base.meanScore.toFixed(1)) + '）</div></div>' +
-            (cScore ? cScore.html : '') + (cUp ? cUp.html : '') + cUD.html;
+            '<div class="cond-card"><div class="cc-title">次日涨家数 &gt; 跌家数</div>' +
+            '<div class="cc-val">' + condPct(cur.pUpDown) + '</div>' +
+            '<div class="cc-sub">' + condCiTxt(cur.hitsUD, n) + '</div>' +
+            '<div class="cc-sub">基准 ' + condPct(base.pUpDown) + ' · <b class="' + sigUD.cls + '">' +
+            condDiffTxt(cur.pUpDown, base.pUpDown) + ' ' + sigUD.txt + '</b></div></div>';
     }
 
     if (verdict) {
-        const arr = [cScore, cUp, cUD].filter(Boolean);
-        const sigs = arr.filter(function (x) { return x.sig.cls !== 'dim'; });
+        const all = upRows.map(function (r) { return { kind: 'up', r: r }; })
+            .concat(scRows.map(function (r) { return { kind: 'sc', r: r }; }));
+        const sigs = all.filter(function (x) { return x.r.sig.cls !== 'dim'; });
         let txt;
         if (!n) {
             txt = '没有符合条件的交易日，换个条件试试。';
         } else if (sigs.length) {
-            txt = '⚠ 有 ' + sigs.length + ' 项目标与基准存在显著差异（p<5%）：' +
-                sigs.map(function (x) { return x.title.replace(/&gt;/g, '>') + ' ' + x.sig.txt; }).join('；') +
-                '。可重点参考' + (n < 30 ? '，但样本只有 ' + n + ' 天，仍需谨慎。' : '。');
+            const names = sigs.map(function (x) {
+                const name = (x.kind === 'up') ? ('次日上涨≥' + x.r.t + '只') : ('次日评分≥' + x.r.t + '分');
+                return name + ' ' + x.r.p.toFixed(0) + '%（' + x.r.sig.txt + '）';
+            });
+            txt = '⚠ 有 ' + sigs.length + ' 个档位与基准存在显著差异（p<5%）：' + names.join('；') +
+                '。' + (n < 30 ? '样本仅 ' + n + ' 天，仍需谨慎。' : '');
         } else {
-            txt = '该条件与区间内基准没有显著差异 —— 说明它<b>对次日没有预测力</b>' +
-                (n < 30 ? '；且样本仅 ' + n + ' 天，更不宜据此决策。' : '。');
+            txt = '所有档位与区间内基准均无显著差异 —— 说明该条件<b>对次日没有预测力</b>' +
+                (n < 30 ? '；且样本仅 ' + n + ' 天。' : '。');
         }
         verdict.innerHTML = txt;
     }
@@ -3075,7 +3101,7 @@ function condAutoScan() {
     const allPairs = [];
     for (let i = 0; i < condRows.length - 1; i++) allPairs.push({ cur: condRows[i], next: condRows[i + 1] });
     const ranged = allPairs.filter(function (p) { return condInRange(p.cur.date); });
-    const TARGET_UP = condNum('cond-nup-val') || 3000;
+    const TARGET_UP = 2000;
     const base = condMetrics(ranged, '>=', TARGET_UP, '>=', TARGET_UP);
 
     const cands = [];
@@ -3157,8 +3183,6 @@ function condReset() {
     condUpSel = [2000];
     condSyncChips();
     set('cond-amt-op', ''); set('cond-amt-val', '');
-    set('cond-nscore-val', '50');
-    set('cond-nup-val', '3000');
     set('cond-start', ''); set('cond-end', '');
     condInitRange();
     condSyncAmt();

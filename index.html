@@ -495,14 +495,9 @@
                     <input type="number" id="cond-amt-val" class="mh-year mh-score-val" placeholder="不限" step="100">
                 </div>
 
-                <div class="hot-themes-head" style="margin-top:14px"><h3>② 次日目标</h3></div>
+                <div class="hot-themes-head" style="margin-top:14px"><h3>② 次日结果（自动分析全部档位）</h3></div>
                 <div class="date-row">
-                    <span class="date-row-label">次日评分 ≥</span>
-                    <input type="number" id="cond-nscore-val" class="mh-year mh-score-val" value="50" step="0.1" title="固定为大于等于">
-                    <span class="date-row-label">次日上涨家数 ≥</span>
-                    <input type="number" id="cond-nup-val" class="mh-year mh-score-val" value="3000" step="10" title="固定为大于等于">
-                    <button class="mini-btn" style="border-color:#3498db;color:#5dade2" onclick="runCond()">▶ 计算概率</button>
-                    <button class="mini-btn" onclick="condAutoScan()" title="自动试一批常见条件，按「次日上涨家数≥2000」的概率提升排序">🔍 自动扫描</button>
+                    <button class="mini-btn" onclick="condAutoScan()" title="自动试一批当日条件，找出对次日有显著影响的条件">🔍 自动扫描条件</button>
                     <button class="mini-btn" onclick="condReset()">恢复默认</button>
                 </div>
                 <div id="cond-note" class="cond-note"></div>
@@ -510,10 +505,43 @@
 
             <div id="cond-cards" class="cond-cards"></div>
             <div id="cond-verdict" class="cond-verdict"></div>
+
+            <div class="hot-themes-box">
+                <div class="hot-themes-head">
+                    <h3>③ 次日上涨家数 · 各档位概率</h3>
+                    <span class="cond-sub">满足当日条件的样本里，次日上涨家数 ≥ 各档位的概率</span>
+                </div>
+                <div class="table-container">
+                    <table class="stock-table cond-table">
+                        <thead><tr>
+                            <th>次日上涨家数</th><th class="num">概率</th><th class="num">95%CI</th>
+                            <th class="num">基准</th><th class="num">较基准</th><th class="num">显著性</th>
+                        </tr></thead>
+                        <tbody id="cond-ladder-up"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="hot-themes-box">
+                <div class="hot-themes-head">
+                    <h3>④ 次日行情评分 · 各档位概率</h3>
+                    <span class="cond-sub">满足当日条件的样本里，次日行情评分 ≥ 各档位的概率</span>
+                </div>
+                <div class="table-container">
+                    <table class="stock-table cond-table">
+                        <thead><tr>
+                            <th>次日行情评分</th><th class="num">概率</th><th class="num">95%CI</th>
+                            <th class="num">基准</th><th class="num">较基准</th><th class="num">显著性</th>
+                        </tr></thead>
+                        <tbody id="cond-ladder-score"></tbody>
+                    </table>
+                </div>
+            </div>
+
             <div id="cond-scan" class="cond-scan"></div>
 
             <div class="hot-themes-box">
-                <div class="hot-themes-head"><h3>③ 次日评分分布（条件组 vs 全样本）</h3></div>
+                <div class="hot-themes-head"><h3>⑤ 次日评分分布（条件组 vs 全样本）</h3></div>
                 <div id="cond-chart" style="width:100%;height:320px;"></div>
             </div>
 
