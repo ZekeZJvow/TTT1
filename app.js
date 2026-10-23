@@ -2737,7 +2737,7 @@ let condScanRows = [];
 // ① 当日条件：档位按钮（可多选 -> 合并成一个左闭右开区间）
 const COND_SCORE_CHOICES = [30, 40, 50, 60, 70];
 const COND_UP_CHOICES = [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000];
-let condScoreSel = [50];     // 评分：可多选档位（区间合并）
+let condScoreSel = [];       // 评分条件已取消（保留为空 = 不筛选）
 let condUpMax = 2000;        // 家数：单选「≤ 该值」；null = 不限
 let condMonths = 12;         // 样本范围（月）：12/24/36/48/60
 
@@ -3139,17 +3139,9 @@ function condAutoScan() {
         cands.push({ label: label, selScore: selS || [], upMax: (upMax === undefined ? null : upMax) });
     };
     const SN = COND_SCORE_CHOICES, UN = COND_UP_CHOICES;
-    SN.forEach(function (v, i) {
-        add('评分 ' + v + '~' + ((SN[i + 1] !== undefined) ? SN[i + 1] : '以上') + '分', [v], null);
-        if (i > 0) add('评分 ≤ ' + v + '分', SN.slice(0, i), null);
-        if (i < SN.length - 1) add('评分 ≥ ' + v + '分', SN.slice(i), null);
-    });
     UN.forEach(function (v) {
         add('上涨 ≤ ' + v + '只', [], v);
     });
-    add('评分 ≥ 60 且 上涨 ≤ 1500', [60, 70], 1500);
-    add('评分 ≤ 40 且 上涨 ≤ 1500', [30, 40], 1500);
-    add('评分 40~60 且 上涨 ≤ 2000', [40, 50], 2000);
 
     const out = [];
     cands.forEach(function (c) {
@@ -3195,7 +3187,7 @@ function condAutoScan() {
 function condApplyScan(i) {
     const r = condScanRows[i];
     if (!r) return;
-    condScoreSel = (r.selScore || []).slice();
+    condScoreSel = [];
     condUpMax = (r.upMax === undefined ? null : r.upMax);
     const set = function (id, v) { const el = document.getElementById(id); if (el) el.value = v; };
     set('cond-amt-op', ''); set('cond-amt-val', '');
@@ -3208,7 +3200,7 @@ function condApplyScan(i) {
 
 function condReset() {
     const set = function (id, v) { const el = document.getElementById(id); if (el) el.value = v; };
-    condScoreSel = [50];
+    condScoreSel = [];
     condUpMax = 2000;
     condMonths = 12;
     condSyncRangeUI();
