@@ -1456,3 +1456,5 @@ body {
 .cond-details summary { cursor: pointer; color: #b0b0b0; font-size: .88rem; }
 .cond-details[open] summary { color: #5dade2; margin-bottom: 10px; }
 @media (max-width: 900px) { .cond-two-charts { grid-template-columns: 1fr; } }
+
+.cond-yr.active { background: linear-gradient(135deg,#3498db,#2980b9); border-color: #3498db; color: #fff; font-weight: 600; }

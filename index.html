@@ -472,20 +472,12 @@
             <div class="cond-box">
                 <div class="cond-row">
                     <span class="date-row-label">样本</span>
-                    <input type="month" id="cond-start" class="mh-year mh-dateq" title="开始年月">
-                    <span class="range-sep">~</span>
-                    <input type="month" id="cond-end" class="mh-year mh-dateq" title="结束年月">
-                    <button class="mini-btn" onclick="condRange(12)">近1年</button>
-                    <button class="mini-btn" onclick="condRange(24)">近2年</button>
-                    <button class="mini-btn" onclick="condRange(0)">全部</button>
-                    <span class="cond-sep"></span>
-                    <span class="date-row-label">成交额(亿)</span>
-                    <select id="cond-amt-op" class="mh-year" onchange="condSyncAmt()">
-                        <option value="">不限</option>
-                        <option value=">=">≥</option>
-                        <option value="<=">≤</option>
-                    </select>
-                    <input type="number" id="cond-amt-val" class="mh-year mh-score-val" placeholder="不限" step="100">
+                    <button class="mini-btn cond-yr" data-m="12" onclick="condRange(12)">近1年</button>
+                    <button class="mini-btn cond-yr" data-m="24" onclick="condRange(24)">近2年</button>
+                    <button class="mini-btn cond-yr" data-m="36" onclick="condRange(36)">近3年</button>
+                    <button class="mini-btn cond-yr" data-m="48" onclick="condRange(48)">近4年</button>
+                    <button class="mini-btn cond-yr" data-m="60" onclick="condRange(60)">近5年</button>
+                    <span id="cond-range-label" class="cond-sub"></span>
                 </div>
                 <div class="cond-row">
                     <span class="date-row-label">评分</span>

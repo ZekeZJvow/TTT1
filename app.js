@@ -2737,8 +2737,9 @@ let condScanRows = [];
 // ① 当日条件：档位按钮（可多选 -> 合并成一个左闭右开区间）
 const COND_SCORE_CHOICES = [30, 40, 50, 60, 70];
 const COND_UP_CHOICES = [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000];
-let condScoreSel = [50];
-let condUpSel = [2000];
+let condScoreSel = [50];     // 评分：可多选档位（区间合并）
+let condUpMax = 2000;        // 家数：单选「≤ 该值」；null = 不限
+let condMonths = 12;         // 样本范围（月）：12/24/36/48/60
 
 function condNum(id) {
     const el = document.getElementById(id);
@@ -2793,38 +2794,31 @@ function condYm(dt) {
     return dt.getFullYear() + '-' + mhPad(dt.getMonth() + 1);
 }
 
-function condInitRange() {
-    const s = document.getElementById('cond-start');
-    const e = document.getElementById('cond-end');
+function condRangeBounds() {
     const now = new Date();
-    if (e && !e.value) e.value = condYm(now);
-    if (s && !s.value) s.value = condYm(new Date(now.getFullYear(), now.getMonth() - 12, 1));
+    const st = new Date(now.getFullYear(), now.getMonth() - condMonths, 1);
+    return { start: condYm(st), end: condYm(now) };
+}
+
+function condSyncRangeUI() {
+    const b = condRangeBounds();
+    const el = document.getElementById('cond-range-label');
+    if (el) el.textContent = '当前样本：' + b.start + ' ~ ' + b.end;
+    Array.prototype.forEach.call(document.querySelectorAll('.cond-yr'), function (btn) {
+        btn.classList.toggle('active', Number(btn.getAttribute('data-m')) === Number(condMonths));
+    });
 }
 
 function condRange(months) {
-    const s = document.getElementById('cond-start');
-    const e = document.getElementById('cond-end');
-    const now = new Date();
-    if (!months) {
-        if (s) s.value = '';
-        if (e) e.value = '';
-    } else {
-        if (e) e.value = condYm(now);
-        if (s) s.value = condYm(new Date(now.getFullYear(), now.getMonth() - months, 1));
-    }
+    condMonths = months || 12;
+    condSyncRangeUI();
     runCond();
 }
 
 function condInRange(dateStr) {
-    const s = document.getElementById('cond-start');
-    const e = document.getElementById('cond-end');
-    const sm = (s && s.value) || '';
-    const em = (e && e.value) || '';
-    if (!sm && !em) return true;
+    const b = condRangeBounds();
     const ym = String(dateStr || '').slice(0, 7);
-    if (sm && ym < sm) return false;
-    if (em && ym > em) return false;
-    return true;
+    return ym >= b.start && ym <= b.end;
 }
 
 function condSyncAmt() {
@@ -2847,28 +2841,34 @@ function condBuildChips() {
     const uc = document.getElementById('cond-up-chips');
     if (uc && !uc.childElementCount) {
         uc.innerHTML = COND_UP_CHOICES.map(function (v) {
-            return '<button class="chip-btn" data-v="' + v + '" onclick="condPickVal(\'up\',' + v + ')">' + v + '</button>';
+            return '<button class="chip-btn" data-v="' + v + '" onclick="condPickVal(\'up\',' + v + ')">≤' + v + '</button>';
         }).join('');
     }
     condSyncChips();
 }
 
 function condSyncChips() {
-    const mark = function (id, sel) {
-        const box = document.getElementById(id);
-        if (!box) return;
-        Array.prototype.forEach.call(box.children, function (b) {
-            b.classList.toggle('active', sel.indexOf(Number(b.getAttribute('data-v'))) >= 0);
+    const sc = document.getElementById('cond-score-chips');
+    if (sc) {
+        Array.prototype.forEach.call(sc.children, function (b) {
+            b.classList.toggle('active', condScoreSel.indexOf(Number(b.getAttribute('data-v'))) >= 0);
         });
-    };
-    mark('cond-score-chips', condScoreSel);
-    mark('cond-up-chips', condUpSel);
+    }
+    const uc = document.getElementById('cond-up-chips');
+    if (uc) {
+        Array.prototype.forEach.call(uc.children, function (b) {
+            b.classList.toggle('active', condUpMax !== null && Number(b.getAttribute('data-v')) === Number(condUpMax));
+        });
+    }
 }
 
 function condPickVal(kind, v) {
-    const arr = (kind === 'score') ? condScoreSel : condUpSel;
-    const i = arr.indexOf(v);
-    if (i >= 0) arr.splice(i, 1); else arr.push(v);
+    if (kind === 'score') {
+        const i = condScoreSel.indexOf(v);
+        if (i >= 0) condScoreSel.splice(i, 1); else condScoreSel.push(v);
+    } else {
+        condUpMax = (condUpMax !== null && Number(condUpMax) === Number(v)) ? null : v;
+    }
     condSyncChips();
     runCond();
 }
@@ -2982,13 +2982,10 @@ function runCond() {
     if (!condRows.length) { if (note) note.textContent = '暂无历史数据'; return; }
 
     const cScoreR = condRangeOf(COND_SCORE_CHOICES, condScoreSel);
-    const cUpR = condRangeOf(COND_UP_CHOICES, condUpSel);
-    const cAmtOp = condVal('cond-amt-op'), cAmtVal = condNum('cond-amt-val');
 
     const ok = function (r) {
         if (!condInRangeNum(r.score, cScoreR)) return false;
-        if (!condInRangeNum(r.up, cUpR)) return false;
-        if (cAmtOp && cAmtVal !== null && !condPass(r.amount, cAmtOp, cAmtVal)) return false;
+        if (condUpMax !== null && (r.up || 0) > condUpMax) return false;
         return true;
     };
 
@@ -3004,17 +3001,13 @@ function runCond() {
 
     const parts = [];
     if (cScoreR) parts.push('评分 ' + condRangeTxt(cScoreR, '分'));
-    if (cUpR) parts.push('上涨家数 ' + condRangeTxt(cUpR, '只'));
-    if (cAmtOp && cAmtVal !== null) parts.push('成交额 ' + (cAmtOp === '>=' ? '≥' : '≤') + ' ' + cAmtVal + '亿');
+    if (condUpMax !== null) parts.push('上涨家数 ≤ ' + condUpMax + '只');
     const condTxt = parts.length ? parts.join(' 且 ') : '不限条件（全样本）';
 
-    const _rs = document.getElementById('cond-start');
-    const _re = document.getElementById('cond-end');
-    const _rangeTxt = ((_rs && _rs.value) || (_re && _re.value))
-        ? (((_rs && _rs.value) || '最早') + ' ~ ' + ((_re && _re.value) || '最新'))
-        : '全部历史';
+    const _b = condRangeBounds();
+    const _rangeTxt = _b.start + ' ~ ' + _b.end;
     const _rl = document.getElementById('cond-range-label');
-    if (_rl) _rl.textContent = '当前样本范围：' + _rangeTxt;
+    if (_rl) _rl.textContent = '当前样本：' + _rangeTxt;
 
     if (note) {
         note.innerHTML = '条件：<b>' + escHtml(condTxt) + '</b> ｜ 样本范围 <b>' + escHtml(_rangeTxt) + '</b> ｜ 匹配 <b>' + n + '</b> 天 / 区间内 ' + base.n +
@@ -3142,37 +3135,36 @@ function condAutoScan() {
     const base = condMetrics(ranged, '>=', TARGET_UP, '>=', TARGET_UP);
 
     const cands = [];
-    const add = function (label, selS, selU) {
-        cands.push({ label: label, selScore: selS || [], selUp: selU || [] });
+    const add = function (label, selS, upMax) {
+        cands.push({ label: label, selScore: selS || [], upMax: (upMax === undefined ? null : upMax) });
     };
     const SN = COND_SCORE_CHOICES, UN = COND_UP_CHOICES;
     SN.forEach(function (v, i) {
-        add('评分 ' + v + '~' + ((SN[i + 1] !== undefined) ? SN[i + 1] : '以上') + '分', [v], []);
-        if (i > 0) add('评分 ≤ ' + v + '分', SN.slice(0, i), []);
-        if (i < SN.length - 1) add('评分 ≥ ' + v + '分', SN.slice(i), []);
+        add('评分 ' + v + '~' + ((SN[i + 1] !== undefined) ? SN[i + 1] : '以上') + '分', [v], null);
+        if (i > 0) add('评分 ≤ ' + v + '分', SN.slice(0, i), null);
+        if (i < SN.length - 1) add('评分 ≥ ' + v + '分', SN.slice(i), null);
     });
-    UN.forEach(function (v, i) {
-        add('上涨 ' + v + '~' + ((UN[i + 1] !== undefined) ? UN[i + 1] : '以上') + '只', [], [v]);
-        if (i > 0) add('上涨 ≤ ' + v + '只', [], UN.slice(0, i));
-        if (i < UN.length - 1) add('上涨 ≥ ' + v + '只', [], UN.slice(i));
+    UN.forEach(function (v) {
+        add('上涨 ≤ ' + v + '只', [], v);
     });
-    add('评分 ≥ 60 且 上涨 ≥ 3000', [60, 70], [3000, 3500, 4000, 4500, 5000]);
-    add('评分 ≤ 40 且 上涨 ≤ 1500', [30, 40], [500, 1000]);
-    add('评分 40~60 且 上涨 ≥ 3000', [40, 50], [3000, 3500, 4000, 4500, 5000]);
+    add('评分 ≥ 60 且 上涨 ≤ 1500', [60, 70], 1500);
+    add('评分 ≤ 40 且 上涨 ≤ 1500', [30, 40], 1500);
+    add('评分 40~60 且 上涨 ≤ 2000', [40, 50], 2000);
 
     const out = [];
     cands.forEach(function (c) {
         const rs = condRangeOf(SN, c.selScore);
-        const ru = condRangeOf(UN, c.selUp);
         const ps = ranged.filter(function (p) {
-            return condInRangeNum(p.cur.score, rs) && condInRangeNum(p.cur.up, ru);
+            if (!condInRangeNum(p.cur.score, rs)) return false;
+            if (c.upMax !== null && (p.cur.up || 0) > c.upMax) return false;
+            return true;
         });
         if (ps.length < 25) return;
         const m = condMetrics(ps, '>=', TARGET_UP, '>=', TARGET_UP);
         const z = condZ(m.hitsU, m.n, base.hitsU, base.n);
         if (z === null || Math.abs(z) < 1.96) return;
         out.push({ label: c.label, n: m.n, p: m.pUp, lift: m.pUp - base.pUp, z: z,
-                   selScore: c.selScore, selUp: c.selUp });
+                   selScore: c.selScore, upMax: c.upMax });
     });
     out.sort(function (a, b) { return Math.abs(b.lift) - Math.abs(a.lift); });
     condScanRows = out.slice(0, 8);
@@ -3204,7 +3196,7 @@ function condApplyScan(i) {
     const r = condScanRows[i];
     if (!r) return;
     condScoreSel = (r.selScore || []).slice();
-    condUpSel = (r.selUp || []).slice();
+    condUpMax = (r.upMax === undefined ? null : r.upMax);
     const set = function (id, v) { const el = document.getElementById(id); if (el) el.value = v; };
     set('cond-amt-op', ''); set('cond-amt-val', '');
     condSyncAmt();
@@ -3217,12 +3209,12 @@ function condApplyScan(i) {
 function condReset() {
     const set = function (id, v) { const el = document.getElementById(id); if (el) el.value = v; };
     condScoreSel = [50];
-    condUpSel = [2000];
+    condUpMax = 2000;
+    condMonths = 12;
+    condSyncRangeUI();
     condSyncChips();
     set('cond-amt-op', ''); set('cond-amt-val', '');
-    set('cond-start', ''); set('cond-end', '');
-    condInitRange();
-    condSyncAmt();
+    condSyncRangeUI();
     const scan = document.getElementById('cond-scan');
     if (scan) scan.innerHTML = '';
     runCond();
@@ -3236,8 +3228,7 @@ async function loadCond(force) {
         condRows = r.rows || [];
         condLoaded = true;
         condBuildChips();
-        condInitRange();
-        condSyncAmt();
+        condSyncRangeUI();
         runCond();
     } catch (e) {
         const note = document.getElementById('cond-note');
