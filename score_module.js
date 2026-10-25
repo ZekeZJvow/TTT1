@@ -543,3 +543,18 @@ function scoreExportCsv() {
 window.addEventListener('resize', function () {
     if (scState.chart) scState.chart.resize();
 });
+
+// 页面版本检测：服务端重启/更新后，最多 30 秒自动刷新，避免一直看旧页面
+(function () {
+    let curVer = null;
+    async function checkVer() {
+        try {
+            const r = await (await fetch('/api/version', { cache: 'no-store' })).json();
+            if (!r || !r.version) return;
+            if (curVer && r.version !== curVer) { location.reload(); return; }
+            curVer = r.version;
+        } catch (e) { /* 网络异常时忽略 */ }
+    }
+    setTimeout(checkVer, 1500);
+    setInterval(checkVer, 30000);
+})();

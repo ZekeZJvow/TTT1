@@ -24,6 +24,34 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
+
+@app.after_request
+def _no_cache_static(resp):
+    """本地工具：HTML/JS/CSS 一律不缓存，避免更新后看到旧页面"""
+    try:
+        path = request.path.lower()
+        if path.endswith((".html", ".js", ".css")) or path == "/api/version":
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+    except Exception:
+        pass
+    return resp
+
+
+@app.route("/api/version")
+def app_version_api():
+    """静态资源版本号（文件 mtime），供页面检测更新后自动刷新"""
+    base = os.path.abspath(app.static_folder)
+    v = 0
+    for f in ("index.html", "app.js", "styles.css", "score.html",
+              "score_module.js", "score_page.js"):
+        try:
+            v = max(v, int(os.path.getmtime(os.path.join(base, f))))
+        except Exception:
+            pass
+    return jsonify({"version": str(v)})
+
 # 内存缓存
 cache = {}
 CACHE_TTL = 600  # 10分钟
@@ -457,7 +485,11 @@ def process_eastmoney_data(data_list, quote_data):
 
 @app.route('/')
 def index():
-    return send_from_directory('.', 'index.html')
+    resp = send_from_directory(os.path.abspath(app.static_folder), 'index.html')
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 
 @app.route('/api/hotlist')
@@ -959,7 +991,9 @@ def market_history_api():
 @app.route("/score")
 def score_page():
     """情绪评分独立页面（只显示该模块）"""
-    return send_from_directory(os.path.abspath(app.static_folder), "score.html")
+    resp = send_from_directory(os.path.abspath(app.static_folder), "score.html")
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
 
 
 @app.route("/api/score/today")
