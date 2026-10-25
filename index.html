@@ -28,6 +28,7 @@
         <button id="mode-multi" class="mode-btn" onclick="switchMode('multi', event)">📅 题材多日对照</button>
         <button id="mode-market" class="mode-btn" onclick="switchMode('market', event)">📈 行情评分走势</button>
         <button id="mode-cond" class="mode-btn" onclick="switchMode('cond', event)">🔮 条件概率</button>
+        <button id="mode-score" class="mode-btn" onclick="switchMode('score', event)">🧮 情绪评分</button>
             <!-- 数据管理模块：按需求暂时关闭（不在页面显示）。要恢复：删掉下面这行的 style="display:none" -->
         <button id="mode-db" class="mode-btn" style="display:none" onclick="switchMode('db', event)">🗄️ 数据管理</button>
         </nav>
@@ -524,6 +525,92 @@
             </details>
 
             <div id="cond-scan" class="cond-scan"></div>
+        </section>
+
+
+        <!-- ============ 面板七：情绪评分 · 历史回测 ============ -->
+        <section id="panel-score" class="panel hidden">
+            <div class="screen-intro sc-intro">
+                <div class="sc-head">
+                    <h2>🧮 情绪评分 · 历史回测</h2>
+                    <div class="sc-head-actions">
+                        <button class="mini-btn" id="sc-rebuild-btn" onclick="scoreRebuild()">↻ 重算评分</button>
+                        <button class="mini-btn" onclick="scoreExportCsv()" title="导出历史评分 + 回测汇总（CSV，Excel 可直接打开）">⬇ 导出 CSV</button>
+                    </div>
+                </div>
+                <p class="screen-desc">
+                    0–100 分由五个因子加权：<b>市场广度 30</b> + <b>涨停跌停 25</b> + <b>炸板质量 15</b> + <b>人气股表现 15</b> + <b>指数与成交确认 15</b>。
+                    数据缺失时<b>不补零</b>，只按可用因子重新归一，并标注「降级评分」和缺失原因。
+                    注意：这里的「情绪评分」与页头「今日行情评分（封板率）」<b>不是同一个指标</b>。
+                    回测只做统计研究，<b>不构成任何买卖建议，也不承诺收益</b>。
+                </p>
+            </div>
+
+            <!-- 首屏：今日总分 + 五因子 -->
+            <div class="sc-hero">
+                <div class="sc-gauge">
+                    <div class="sc-ring" id="sc-ring" style="--p:0;--c:#666">
+                        <div class="sc-ring-in">
+                            <b id="sc-total">--</b><i>分</i>
+                        </div>
+                    </div>
+                    <div class="sc-gauge-meta">
+                        <span class="sc-label" id="sc-label">—</span>
+                        <span class="sc-date" id="sc-date">—</span>
+                        <span class="sc-comp" id="sc-comp">完整度 —</span>
+                    </div>
+                </div>
+                <div class="sc-factors" id="sc-factors">
+                    <div class="sc-empty">加载中…</div>
+                </div>
+            </div>
+            <div id="sc-alerts" class="sc-alerts hidden"></div>
+
+            <!-- 历史评分曲线 -->
+            <div class="hot-themes-box">
+                <div class="hot-themes-head">
+                    <h3>📈 历史评分曲线</h3>
+                    <div class="sc-chips" id="sc-range-chips">
+                        <button class="mini-btn active" data-r="1m" onclick="scoreRange('1m')">近1月</button>
+                        <button class="mini-btn" data-r="3m" onclick="scoreRange('3m')">近3月</button>
+                        <button class="mini-btn" data-r="1y" onclick="scoreRange('1y')">近1年</button>
+                        <button class="mini-btn" data-r="3y" onclick="scoreRange('3y')">近3年</button>
+                        <button class="mini-btn" data-r="all" onclick="scoreRange('all')">全部</button>
+                    </div>
+                </div>
+                <div class="sc-legend" id="sc-legend"></div>
+                <div id="sc-chart" class="sc-chart"></div>
+                <div class="sc-hint" id="sc-chart-hint"></div>
+            </div>
+
+            <!-- 回测 -->
+            <div class="hot-themes-box">
+                <div class="hot-themes-head">
+                    <h3>🧪 历史回测 · 未来 1 / 3 / 5 日</h3>
+                    <select id="sc-index" class="mh-year" onchange="loadScoreBacktest(true)" title="选择基准指数">
+                        <option value="000300">沪深300</option>
+                        <option value="000001">上证指数</option>
+                    </select>
+                    <select id="sc-bt-range" class="mh-year" onchange="loadScoreBacktest(true)" title="回测样本范围">
+                        <option value="all">全部历史</option>
+                        <option value="3y">近3年</option>
+                        <option value="1y">近1年</option>
+                    </select>
+                    <button class="mini-btn" onclick="loadScoreBacktest(true)">↻ 重新回测</button>
+                </div>
+                <div id="sc-bt-body">
+                    <div class="sc-empty">加载中…</div>
+                </div>
+            </div>
+
+            <!-- 数据质量 -->
+            <div class="hot-themes-box">
+                <div class="hot-themes-head">
+                    <h3>🧭 数据质量（最近 30 个交易日）</h3>
+                    <button class="mini-btn" onclick="loadScoreQuality()">↻ 刷新</button>
+                </div>
+                <div id="sc-quality"><div class="sc-empty">加载中…</div></div>
+            </div>
         </section>
 
         <!-- ============ 面板四：数据管理（已关闭：不在页面显示；要恢复删掉 panel-db 上的 style） ============ -->

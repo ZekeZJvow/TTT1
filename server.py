@@ -956,6 +956,82 @@ def market_history_api():
                     "rows": rows, "count": len(rows), "months": months})
 
 
+@app.route("/api/score/today")
+def score_today_api():
+    """最新一条情绪评分（5 模块分 + 总分 + 标签 + 警报 + 完整度）"""
+    try:
+        row = _mdb.latest_score()
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": bool(row), "data": row})
+
+
+@app.route("/api/score/rebuild", methods=["POST"])
+def score_rebuild_api():
+    """重算全部历史情绪评分（秒级，只读本地库，不联网）"""
+    try:
+        import score_engine as _se
+        n = _se.compute_all()
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "days": n})
+
+
+@app.route("/api/score/history")
+def score_history_api():
+    start = (request.args.get("start") or "").strip()
+    end = (request.args.get("end") or "").strip()
+    try:
+        rows = _mdb.score_history(start or None, end or None)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "rows": rows, "count": len(rows)})
+
+
+@app.route("/api/score/quality")
+def score_quality_api():
+    try:
+        days = int(request.args.get("days", 30))
+    except Exception:
+        days = 30
+    days = max(5, min(days, 120))
+    try:
+        rows = _mdb.score_quality(days)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "rows": rows, "count": len(rows)})
+
+
+@app.route("/api/score/backtest")
+def score_backtest_api():
+    """历史回测：未来 1/3/5 日收益、分组、样本外、相关性"""
+    try:
+        import backtest_engine as _be
+    except Exception as e:
+        return jsonify({"success": False, "error": "backtest_engine 不可用: %s" % e}), 500
+    start = (request.args.get("start") or "").strip() or None
+    end = (request.args.get("end") or "").strip() or None
+    idx = (request.args.get("index") or "000300").strip()
+    if idx not in ("000300", "000001"):
+        idx = "000300"
+    try:
+        mc = float(request.args.get("min_completeness", 0) or 0)
+    except Exception:
+        mc = 0.0
+    try:
+        ei = float(request.args.get("ext_index", -3) or -3)
+        ew = float(request.args.get("ext_ew", -5) or -5)
+    except Exception:
+        ei, ew = -3.0, -5.0
+    try:
+        res = _be.run(_mdb, start=start, end=end, index_code=idx,
+                      min_completeness=mc, ext_index=ei, ext_ew=ew)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    res["success"] = bool(res.get("ok"))
+    return jsonify(res)
+
+
 @app.route("/api/market-score")
 def market_score_api():
     """今日行情评分（= 封板率）。只读缓存/本地库，**不触发扫描**。

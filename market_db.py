@@ -1520,6 +1520,9 @@ DATE_COLUMN = {
     "market_seal_stats": "trade_date",
     "market_breadth": "trade_date",
     "market_margin": "trade_date",
+    "index_daily": "trade_date",
+    "market_day_stats": "trade_date",
+    "score_daily": "trade_date",
     "market_turnover": "trade_date",
     "raw_payload": "trade_date",
     "stock_news": "news_date",
@@ -1534,6 +1537,7 @@ _TABLES = ("stock", "trade_calendar", "theme_catalog", "theme_member",
            "stock_news", "stock_anomaly", "dragon_tiger",
            "theme_heat_snapshot", "theme_topic", "theme_topic_link", "theme_top_stock",
            "market_seal_stats", "market_breadth", "market_turnover", "market_margin",
+           "index_daily", "market_day_stats", "score_daily",
            "screening_run", "screening_result", "scan_stock", "fetch_log", "raw_payload")
 
 _CLEARABLE = tuple(DATE_COLUMN.keys())
@@ -1553,6 +1557,9 @@ TABLE_LABEL = {
     "market_breadth": "涨跌家数",
     "market_turnover": "两市成交额",
     "market_margin": "融资融券余额",
+    "index_daily": "指数日线",
+    "market_day_stats": "全市场日统计",
+    "score_daily": "情绪评分",
     "raw_payload": "原始响应快照",
 }
 
@@ -2554,6 +2561,60 @@ def save_seal_intraday(row):
     if n:
         invalidate_market_stats()
     return n or 0
+
+
+def latest_score():
+    """最新一条情绪评分（含 5 个模块分 / 标签 / 警报 / 完整度）"""
+    def _f(conn):
+        r = conn.execute(
+            "SELECT `trade_date`,`s_breadth`,`s_limit`,`s_broken`,`s_hot`,`s_index`,"
+            "`total`,`label`,`alerts`,`completeness`,`missing`,`model_version`,`computed_at` "
+            "FROM `score_daily` ORDER BY `trade_date` DESC LIMIT 1").fetchone()
+        if not r:
+            return None
+        return {"date": r["trade_date"], "breadth": r["s_breadth"], "limit": r["s_limit"],
+                "broken": r["s_broken"], "hot": r["s_hot"], "index": r["s_index"],
+                "total": r["total"], "label": r["label"], "alerts": r["alerts"],
+                "completeness": r["completeness"], "missing": r["missing"],
+                "model_version": r["model_version"], "computed_at": r["computed_at"]}
+    return _read(_f, None)
+
+
+def score_history(start=None, end=None):
+    """历史评分列表（升序）"""
+    def _f(conn):
+        sql = ("SELECT `trade_date`,`s_breadth`,`s_limit`,`s_broken`,`s_hot`,`s_index`,"
+               "`total`,`label`,`alerts`,`completeness`,`missing` FROM `score_daily`")
+        cond, args = [], []
+        if start:
+            cond.append("`trade_date`>=?"); args.append(start)
+        if end:
+            cond.append("`trade_date`<=?"); args.append(end)
+        if cond:
+            sql += " WHERE " + " AND ".join(cond)
+        sql += " ORDER BY `trade_date`"
+        out = []
+        for r in conn.execute(sql, tuple(args)).fetchall():
+            out.append({"date": r["trade_date"], "breadth": r["s_breadth"],
+                        "limit": r["s_limit"], "broken": r["s_broken"],
+                        "hot": r["s_hot"], "index": r["s_index"], "total": r["total"],
+                        "label": r["label"], "alerts": r["alerts"],
+                        "completeness": r["completeness"], "missing": r["missing"]})
+        return out
+    return _read(_f, []) or []
+
+
+def score_quality(days=30):
+    """最近 N 天的数据完整度 / 缺失因子 / 警报"""
+    def _f(conn):
+        out = []
+        for r in conn.execute(
+                "SELECT `trade_date`,`completeness`,`missing`,`alerts` FROM `score_daily` "
+                "ORDER BY `trade_date` DESC LIMIT ?", (int(days),)).fetchall():
+            out.append({"date": r["trade_date"], "completeness": r["completeness"],
+                        "missing": r["missing"], "alerts": r["alerts"]})
+        return out
+    return _read(_f, []) or []
 
 
 def ensure_seal_stats_async(min_interval=600.0):

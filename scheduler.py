@@ -495,6 +495,44 @@ def _fetch_seal(target=None):
     return "封板率+%d天" % _mdb.compute_seal_stats()
 
 
+def _load_daystats_module():
+    """加载 tools/build_day_stats.py（开发态在 tools/，打包后在解包根目录）"""
+    import importlib.util
+    import os
+    import sys
+    bases = [os.path.dirname(os.path.abspath(__file__))]
+    if getattr(sys, "_MEIPASS", ""):
+        bases.insert(0, sys._MEIPASS)
+    cands = []
+    for b in bases:
+        cands.append(os.path.join(b, "build_day_stats.py"))
+        cands.append(os.path.join(b, "tools", "build_day_stats.py"))
+    for path in cands:
+        if os.path.isfile(path):
+            spec = importlib.util.spec_from_file_location("build_day_stats", path)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules["build_day_stats"] = mod
+            spec.loader.exec_module(mod)
+            return mod
+    raise RuntimeError("找不到 build_day_stats.py")
+
+
+def _fetch_daystats(target=None):
+    """全市场每日统计（涨跌家数/涨跌停/炸板/连板/等权收益）+ 指数日线"""
+    mod = _load_daystats_module()
+    try:
+        mod.build_index_daily(60)
+    except Exception as e:
+        print("[daystats] 指数日线抓取失败（沿用本地库）: %s" % e)
+    return "日统计+%d天" % (mod.build_day_stats() or 0)
+
+
+def _fetch_score(target=None):
+    """按 market_day_stats 重算情绪评分（5 因子，秒级）"""
+    import score_engine
+    return "情绪评分+%d天" % (score_engine.compute_all() or 0)
+
+
 def _fetch_breadth(target):
     """涨跌家数落库（沪深京全部 A 股口径 —— 与同花顺「涨跌分布」一致）"""
     import market_breadth as _mb
@@ -522,6 +560,8 @@ def run_daily_job(target_date=None, progress=None, name="close"):
     step("breadth", lambda: _fetch_breadth(target))
     step("margin", lambda: _fetch_margin(target))
     step("sealstats", lambda: _fetch_seal(target))
+    step("daystats", lambda: _fetch_daystats(target))
+    step("score", _fetch_score)
     step("themes", lambda: _fetch_themes(target))
 
     # 1) 第一次完整性校验

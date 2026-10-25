@@ -407,3 +407,50 @@ CREATE INDEX IF NOT EXISTS ix_raw_kind_date ON raw_payload(kind, trade_date);
 --   REAL                              -> DECIMAL(18,4)
 --   INSERT ... ON CONFLICT(...) DO UPDATE SET ... -> INSERT ... ON DUPLICATE KEY UPDATE ...
 -- ============================================================================
+
+-- 19. 指数日线（沪深300 / 上证）
+CREATE TABLE IF NOT EXISTS index_daily (
+  trade_date TEXT NOT NULL,
+  code       TEXT NOT NULL,
+  close      REAL,
+  pct        REAL,
+  PRIMARY KEY (trade_date, code)
+);
+
+-- 20. 每日全市场统计（情绪评分的输入层）
+CREATE TABLE IF NOT EXISTS market_day_stats (
+  trade_date   TEXT PRIMARY KEY,
+  universe     INTEGER,
+  up_count     INTEGER,
+  down_count   INTEGER,
+  flat_count   INTEGER,
+  up5_count    INTEGER,
+  down5_count  INTEGER,
+  limit_up     INTEGER,
+  limit_down   INTEGER,
+  broken       INTEGER,
+  limit_height INTEGER,
+  promote_rate REAL,
+  ew_return    REAL,
+  amount       REAL,
+  source       TEXT,
+  computed_at  TEXT
+);
+
+-- 21. 每日情绪评分（5 个模块分 + 总分 + 完整度）
+CREATE TABLE IF NOT EXISTS score_daily (
+  trade_date    TEXT PRIMARY KEY,
+  s_breadth     REAL,
+  s_limit       REAL,
+  s_broken      REAL,
+  s_hot         REAL,
+  s_index       REAL,
+  total         REAL,
+  label         TEXT,
+  alerts        TEXT,
+  completeness  REAL,
+  missing       TEXT,
+  model_version TEXT,
+  data_version  TEXT,
+  computed_at   TEXT
+);

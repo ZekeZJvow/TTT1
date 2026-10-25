@@ -8,10 +8,10 @@ os.chdir(ROOT)
 datas = ["index.html", "app.js", "styles.css", "icon.ico", "echarts.min.js",
          "schema.sql", "deploy/mysql_schema.sql",
          "tools/backfill_hotlist.py", "tools/backfill_turnover.py",
-         "tools/backfill_kline_all.py"]
+         "tools/backfill_kline_all.py", "tools/build_day_stats.py"]
 hidden = ["flask", "flask_cors", "urllib3", "requests", "screener", "stock_data",
           "market_db", "market_turnover", "market_breadth", "realtime_snapshot", "ths_turnover", "margin_data", "scheduler", "notifier", "backfill_hotlist",
-          "openpyxl"]
+          "openpyxl", "score_engine", "backtest_engine"]
 
 cmd = [os.path.join(ROOT, "venv", "Scripts", "python.exe"), "-m", "PyInstaller",
        "--noconfirm", "--clean", "--onefile", "--name", "A股人气雷达",
