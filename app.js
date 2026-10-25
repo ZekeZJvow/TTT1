@@ -11,30 +11,8 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('A股人气雷达 已加载');
     // auto load on page open
     fetchData();
-    loadMarketScore();          // 页头「今日行情评分」：只读已有结果，不触发扫描
+    loadScoreToday();           // 页头「今日情绪评分」：只读本地评分，不触发重算
 });
-
-// 页头今日行情评分（= 封板率）
-function setMarketScore(score) {
-    var el = document.getElementById('ms-score');
-    if (!el) return;
-    var sc = Number(score);
-    if (score === null || score === undefined || score === '' || isNaN(sc)) {
-        el.textContent = '--';
-        el.className = '';
-        return;
-    }
-    el.textContent = sc.toFixed(1);
-    el.className = (sc >= 70 ? 'up-strong' : (sc >= 50 ? 'mid' : 'down'));
-}
-
-async function loadMarketScore(dateOpt) {
-    try {
-        var q = dateOpt ? ('?date=' + encodeURIComponent(dateOpt)) : '';
-        var r = await (await fetch('/api/market-score' + q)).json();
-        if (r && r.success) setMarketScore(r.score);
-    } catch (e) { /* 忽略：显示 -- 即可 */ }
-}
 
 // ==================== 数据获取 ====================
 async function fetchData(dateOpt) {
@@ -919,15 +897,6 @@ function renderFunnel(res) {
     html += '</div>';
     html += '<div class="funnel-note">封板率 <b>' + res.sealedRate + '%</b>（' + f.sealed + ' / ' + f.final + '）</div>';
 
-    // 今日行情评分 = 封板率（0~100 分），大字号展示在最上方
-    (function () {
-        var sc = Number(res.sealedRate);
-        var el = document.getElementById('ms-score');
-        if (!el) return;
-        el.textContent = isNaN(sc) ? '--' : sc.toFixed(1);
-        el.className = isNaN(sc) ? '' : (sc >= 70 ? 'up-strong' : (sc >= 50 ? 'mid' : 'down'));
-        var box = document.getElementById('market-score-box'); if (box) box.classList.remove('hidden');
-    })();
     document.getElementById('funnel-body').innerHTML = html;
 }
 
@@ -3277,7 +3246,7 @@ function scFmt(v, digits, suffix) {
 
 async function loadScoreModule(force) {
     if (scState.loaded && !force) return;
-    await loadScoreToday();
+    if (force || !scState.today) await loadScoreToday();
     await loadScoreHistory(true);
     await loadScoreBacktest(true);
     await loadScoreQuality();
@@ -3303,20 +3272,26 @@ async function loadScoreToday() {
 
 function renderScoreToday(d) {
     const total = d.total;
-    const ring = document.getElementById('sc-ring');
-    if (ring) {
-        ring.style.setProperty('--p', total == null ? 0 : Math.max(0, Math.min(100, total)));
-        ring.style.setProperty('--c', scColor(total));
+
+    // 页头右上角：今日情绪评分
+    const hScore = document.getElementById('hs-score');
+    if (hScore) {
+        hScore.textContent = total == null ? '--' : Number(total).toFixed(1);
+        hScore.style.color = total == null ? '#fff' : scColor(total);
     }
-    const tEl = document.getElementById('sc-total');
-    if (tEl) tEl.textContent = total == null ? '--' : Number(total).toFixed(1);
-    const lEl = document.getElementById('sc-label');
-    if (lEl) {
-        lEl.textContent = d.label || '—';
-        lEl.className = 'sc-label ' + scLabelCls(total);
+    const hLabel = document.getElementById('hs-label');
+    if (hLabel) {
+        hLabel.textContent = d.label || '—';
+        hLabel.className = 'ms-tag ' + scLabelCls(total);
     }
+    const hDate = document.getElementById('hs-date');
+    if (hDate) hDate.textContent = d.date || '—';
+    const hBox = document.getElementById('market-score-box');
+    if (hBox) hBox.title = '情绪评分 ' + (total == null ? '--' : total) + ' 分（' + (d.label || '—') + '）· ' + (d.date || '') +
+        ' · 五因子加权，只反映当日市场情绪，不构成买卖建议';
+
     const dEl = document.getElementById('sc-date');
-    if (dEl) dEl.textContent = d.date ? ('交易日 ' + d.date) : '—';
+    if (dEl) dEl.textContent = d.date || '—';
     const cEl = document.getElementById('sc-comp');
     if (cEl) {
         const comp = d.completeness == null ? null : Number(d.completeness);

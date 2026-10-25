@@ -15,9 +15,10 @@
                 <h1>📈 A股人气雷达</h1>
                 <p class="subtitle">人气榜 · 题材热度 · 首板选股 · 数据复盘</p>
             </div>
-            <div class="market-score" id="market-score-box" title="今日行情评分 = 当日封板率">
-                <div class="ms-label">今日行情评分</div>
-                <div class="ms-value"><span id="ms-score">--</span><span class="ms-unit">分</span></div>
+            <div class="market-score" id="market-score-box" title="情绪评分 = 五因子加权（0–100），只反映当日市场情绪，不构成买卖建议">
+                <div class="ms-label">今日情绪评分</div>
+                <div class="ms-value"><span id="hs-score">--</span><span class="ms-unit">分</span></div>
+                <div class="ms-sub"><span class="ms-tag" id="hs-label">—</span><span id="hs-date">—</span></div>
             </div>
         </header>
 
@@ -541,24 +542,16 @@
                 <p class="screen-desc">
                     0–100 分由五个因子加权：<b>市场广度 30</b> + <b>涨停跌停 25</b> + <b>炸板质量 15</b> + <b>人气股表现 15</b> + <b>指数与成交确认 15</b>。
                     数据缺失时<b>不补零</b>，只按可用因子重新归一，并标注「降级评分」和缺失原因。
-                    注意：这里的「情绪评分」与页头「今日行情评分（封板率）」<b>不是同一个指标</b>。
+                    今日总分与标签同步显示在页面右上角。
                     回测只做统计研究，<b>不构成任何买卖建议，也不承诺收益</b>。
                 </p>
             </div>
 
             <!-- 首屏：今日总分 + 五因子 -->
-            <div class="sc-hero">
-                <div class="sc-gauge">
-                    <div class="sc-ring" id="sc-ring" style="--p:0;--c:#666">
-                        <div class="sc-ring-in">
-                            <b id="sc-total">--</b><i>分</i>
-                        </div>
-                    </div>
-                    <div class="sc-gauge-meta">
-                        <span class="sc-label" id="sc-label">—</span>
-                        <span class="sc-date" id="sc-date">—</span>
-                        <span class="sc-comp" id="sc-comp">完整度 —</span>
-                    </div>
+            <div class="sc-hero sc-hero--factors">
+                <div class="sc-hero-meta">
+                    <span>交易日 <b id="sc-date">—</b></span>
+                    <span id="sc-comp">完整度 —</span>
                 </div>
                 <div class="sc-factors" id="sc-factors">
                     <div class="sc-empty">加载中…</div>

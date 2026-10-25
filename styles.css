@@ -1365,6 +1365,16 @@ body {
 .market-score .ms-value #ms-score.up-strong { color: #ff5252; }
 .market-score .ms-value #ms-score.mid { color: #f39c12; }
 .market-score .ms-value #ms-score.down { color: #2ecc71; }
+.market-score .ms-sub { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-size: .76rem; color: #9aa0a6; white-space: nowrap; }
+.market-score .ms-sub .ms-tag { padding: 1px 9px; border-radius: 10px; background: rgba(255,255,255,.08); color: #d8dde3; font-weight: 600; }
+.market-score .ms-sub .ms-tag.lv-strong { background: rgba(255,82,82,.16); color: #ff6b6b; }
+.market-score .ms-sub .ms-tag.lv-good { background: rgba(243,156,18,.16); color: #f5b041; }
+.market-score .ms-sub .ms-tag.lv-mid { background: rgba(245,215,110,.14); color: #f5d76e; }
+.market-score .ms-sub .ms-tag.lv-weak { background: rgba(93,173,226,.16); color: #7fc4ef; }
+.market-score .ms-sub .ms-tag.lv-bad { background: rgba(46,204,113,.16); color: #6ee7a0; }
+.sc-hero.sc-hero--factors { display: block; }
+.sc-hero-meta { display: flex; flex-wrap: wrap; gap: 6px 20px; align-items: center; color: #9aa0a6; font-size: .82rem; margin-bottom: 14px; }
+.sc-hero-meta b { color: #e6e8ea; font-weight: 600; }
 @media (max-width: 768px) {
     .header { justify-content: center; text-align: center; }
     .header .header-text { text-align: center; }
@@ -1567,4 +1577,11 @@ body {
     .sc-factor { grid-template-columns: 104px minmax(0,1fr) 44px; gap: 8px; }
     .sc-f-name { font-size: .8rem; }
     .sc-f-name em { display: none; }
+}
+
+/* 窄屏：导航横向滚动，避免 7 个模块把页面撑出横向滚动条 */
+@media (max-width: 900px) {
+    .mode-tabs { max-width: 100%; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
+    .mode-tabs::-webkit-scrollbar { display: none; }
+    .mode-btn { flex: 0 0 auto; padding: 9px 18px; font-size: .92rem; }
 }
