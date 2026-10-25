@@ -2696,6 +2696,16 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                 mmap[r["trade_date"]] = (r["rz_ye"], r["rq_ye"])
         except Exception:
             mmap = {}
+        # 中证500 / 中证1000 日涨跌幅（表格展示用）
+        imap = {}
+        try:
+            for r in conn.execute(
+                    "SELECT `trade_date`,`code`,`pct` FROM `index_daily` "
+                    "WHERE `code` IN ('000905','000852')").fetchall():
+                imap.setdefault(r["trade_date"], {})[r["code"]] = r["pct"]
+        except Exception:
+            imap = {}
+
         # 情绪评分（五因子，收盘后生成；盘中行为空）
         smap = {}
         try:
@@ -2738,11 +2748,13 @@ def daily_market_stats(max_days=45, prefer_screening=True):
             prev_amt = amt if amt is not None else prev_amt
             rzye, rqye = mmap.get(d, (None, None))
             emo, emo_lab = smap.get(d, (None, None))
+            idxp = imap.get(d, {})
             out.append({"date": d, "up": up, "down": down, "flat": flat,
                         "final": final, "sealed": sealed, "score": score, "src": src,
                         "breadth_src": bsrc, "amount": amt, "amount_prev": None,
                         "amount_diff": diff, "rz_ye": rzye, "rq_ye": rqye,
-                        "emotion": emo, "emotion_label": emo_lab})
+                        "emotion": emo, "emotion_label": emo_lab,
+                        "zz500_pct": idxp.get("000905"), "zz1000_pct": idxp.get("000852")})
         return out[-n:]
     rows = _read(_f, []) or []
     if not rows:
