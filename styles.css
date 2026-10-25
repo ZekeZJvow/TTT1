@@ -1183,6 +1183,9 @@ body {
 .mh-year:focus { outline: none; border-color: #3498db; }
 .mh-dateq { color-scheme: dark; }
 .mh-date-input { width: 112px; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: .3px; }
+.mh-hit { display: inline-block; margin-left: 5px; padding: 0 6px; border-radius: 8px; background: rgba(243,156,18,.18); color: #f5b041; font-size: .7rem; line-height: 1.5; vertical-align: 1px; }
+tr.mh-hit-row td { background: rgba(243,156,18,.05); }
+
 .mh-score-val { width: 90px; }
 .mh-months { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .mh-month-btn { padding: 5px 11px; border-radius: 8px; font-size: .8rem; }

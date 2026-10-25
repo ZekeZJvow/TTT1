@@ -2410,21 +2410,45 @@ function mhScoreOpText() {
     return ({ '>=': '≥', '>': '>', '<=': '≤', '<': '<', '=': '=' })[mhScoreOp] || mhScoreOp;
 }
 
+function mhScoreHitOne(r, v) {
+    if (!r || r.emotion == null) return false;
+    const s = Number(r.emotion);
+    switch (mhScoreOp) {
+        case '>=': return s >= v;
+        case '>': return s > v;
+        case '<=': return s <= v;
+        case '<': return s < v;
+        case '=': return s === v;
+        default: return false;
+    }
+}
+
 function mhApplyScoreFilter(rows) {
     if (!mhScoreActive()) return rows;
     const v = Number(mhScoreVal);
     if (!isFinite(v)) return rows;
-    return rows.filter(function (r) {
-        if (r.emotion == null) return false;
-        switch (mhScoreOp) {
-            case '>=': return r.emotion >= v;
-            case '>': return r.emotion > v;
-            case '<=': return r.emotion <= v;
-            case '<': return r.emotion < v;
-            case '=': return r.emotion === v;
-            default: return true;
-        }
-    });
+
+    // 命中日展开为「当日 + 后面 3 个交易日」（4 天），多组重叠自动去重
+    const hits = rows.map(function (r) { return mhScoreHitOne(r, v); });
+    const keep = {};
+    let incomplete = false;
+    let hitCount = 0;
+    for (let i = 0; i < rows.length; i++) {
+        if (!hits[i]) continue;
+        hitCount++;
+        if (i + 3 >= rows.length) incomplete = true;
+        for (let k = 0; k < 4 && i + k < rows.length; k++) keep[i + k] = true;
+    }
+    const out = [];
+    for (let i = 0; i < rows.length; i++) {
+        if (!keep[i]) continue;
+        const x = Object.assign({}, rows[i]);
+        x._hit = !!hits[i];
+        out.push(x);
+    }
+    out._hitCount = hitCount;
+    out._incomplete = incomplete;
+    return out;
 }
 
 function mhApplyScore() {
@@ -2654,7 +2678,9 @@ function renderMarketHistory(rows) {
                 : '') +
             (mhScoreActive()
                 ? '<span class="mh-item dim">评分 ' + mhScoreOpText() + ' ' + mhScoreVal +
-                    ' · 筛选出 <b>' + rows.length + '</b> / 共 ' + mhRawRows.length + ' 个交易日</span>'
+                    ' · 命中 <b>' + (rows._hitCount || 0) + '</b> 天，含当日+3日共 <b>' + rows.length +
+                    '</b> 天 / 共 ' + mhRawRows.length + ' 个交易日' +
+                    (rows._incomplete ? '（末尾窗口不足3天）' : '') + '</span>'
                 : '<span class="mh-item dim">共 ' + rows.length + ' 个交易日' +
                     (mhMonth ? '（' + mhYear() + '年' + mhMonth + '月）'
                              : (mhYearSel ? '（' + mhYearSel + '年）'
@@ -2667,8 +2693,9 @@ function renderMarketHistory(rows) {
         body.innerHTML = rows.slice().reverse().map(function (x) {
             const cls = (x.emotion == null) ? 'dim' : (x.emotion >= 70 ? 'up-strong' : (x.emotion >= 50 ? 'mid' : 'down'));
             const ratio = x.down ? (x.up / x.down).toFixed(2) : '—';
-            return '<tr>' +
+            return '<tr' + (x._hit ? ' class="mh-hit-row"' : '') + '>' +
                 '<td>' + escHtml(x.date) +
+                    (x._hit ? ' <span class="mh-hit">命中</span>' : '') +
                     (x.src === 'intraday' ? ' <span class="mh-live">盘中</span>' : '') + '</td>' +
                 '<td class="num ' + cls + '"' + (x.emotion == null ? ' title="盘中暂无情绪评分，收盘后生成"' : '') + '>' +
                     (x.emotion == null ? '—' : Number(x.emotion).toFixed(1)) + '</td>' +
@@ -2706,6 +2733,7 @@ function renderMarketHistory(rows) {
                 if (!ps || !ps.length) return '';
                 const x = rows[ps[0].dataIndex] || {};
                 return '<b>' + escHtml(x.date || '') + '</b>' +
+                    (x._hit ? ' <span style="color:#f5b041">★ 命中筛选条件</span>' : '') +
                     '<br>情绪评分：' + (x.emotion == null ? '—' : Number(x.emotion).toFixed(1)) +
                     '<br>上涨家数：' + x.up +
                     '<br>下跌家数：' + x.down +
