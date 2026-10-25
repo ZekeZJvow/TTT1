@@ -966,6 +966,22 @@ def score_today_api():
     return jsonify({"success": bool(row), "data": row})
 
 
+@app.route("/api/score/intraday")
+def score_intraday_api():
+    """盘中估算：抓一次全市场实时快照，用五因子算当日评分（不写库）"""
+    try:
+        import score_engine as _se
+    except Exception as e:
+        return jsonify({"ok": False, "error": "score_engine 不可用: %s" % e}), 500
+    try:
+        res = _se.compute_intraday()
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    resp = jsonify(res)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @app.route("/api/score/rebuild", methods=["POST"])
 def score_rebuild_api():
     """重算全部历史情绪评分（秒级，只读本地库，不联网）"""

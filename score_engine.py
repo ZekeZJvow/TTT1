@@ -13,6 +13,7 @@ r"""情绪评分引擎 V1（对应 PRD 第 4 节）
 """
 import os
 import sys
+import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if not os.path.isfile(os.path.join(ROOT, "market_db.py")):
@@ -24,6 +25,7 @@ import market_db as m
 MODEL_VERSION = "v1.0"
 WEIGHTS = {"breadth": 30.0, "limit": 25.0, "broken": 15.0, "hot": 15.0, "index": 15.0}
 LABELS = [(80, "强势"), (65, "偏强"), (45, "震荡分化"), (30, "偏弱"), (0, "高风险/恐慌")]
+_INTRA_CACHE = {"ts": 0.0, "res": None}
 
 
 def clamp01(x):
@@ -108,6 +110,101 @@ def compute_scores(stats, idx_pct, amt_ma20, hot):
         alerts.append("数据不完整，降级评分（缺：%s）" % "、".join(missing))
 
     return s, total, label_of(total), alerts, completeness, missing
+
+
+def compute_from_snapshot(snap, today=None):
+    """用一次实时快照计算「盘中估算」评分（不写库、不覆盖历史）
+
+    snap 需包含：universe/up/down/flat/up5/down5/limit_up/limit_down/
+                 broken/limit_height/promote_rate/amount_yi/index_pct/hot/date/quote_time
+    数据不足的因子按缺失处理；返回 provisional=True，由前端标注「盘中估算」。
+    """
+    if not snap:
+        return {"ok": False, "error": "没有实时快照"}
+    today = today or time.strftime("%Y-%m-%d")
+
+    # 20 日均额：用「今天之前」已入库的完整交易日，避免把盘中半天成交额混进均值
+    rows = m._read(lambda c: c.execute(
+        "SELECT `amount` FROM `market_day_stats` "
+        "WHERE `trade_date` < ? AND `amount` IS NOT NULL "
+        "ORDER BY `trade_date` DESC LIMIT 20", (today,)).fetchall(), [])
+    amts = [r["amount"] for r in rows if r["amount"]]
+    amt_ma20 = (sum(amts) / len(amts)) if amts else None
+
+    universe = snap.get("universe") or (
+        (snap.get("up") or 0) + (snap.get("down") or 0) + (snap.get("flat") or 0))
+    stats = {
+        "universe": universe,
+        "up_count": snap.get("up"),
+        "down_count": snap.get("down"),
+        "flat_count": snap.get("flat"),
+        "up5_count": snap.get("up5"),
+        "down5_count": snap.get("down5"),
+        "limit_up": snap.get("limit_up"),
+        "limit_down": snap.get("limit_down"),
+        "broken": snap.get("broken"),
+        "limit_height": snap.get("limit_height"),
+        "promote_rate": snap.get("promote_rate"),
+        "amount": snap.get("amount_yi"),
+    }
+    s, total, lab, alerts, comp, missing = compute_scores(
+        stats, snap.get("index_pct"), amt_ma20, snap.get("hot"))
+    if total is None:
+        return {"ok": False, "error": "盘中数据不足，无法计算评分"}
+
+    out = {
+        "ok": True, "date": today, "quote_time": snap.get("quote_time"),
+        "total": total, "label": lab, "alerts": "；".join(alerts),
+        "completeness": comp, "missing": "、".join(missing),
+        "model_version": "%s-intraday" % MODEL_VERSION,
+        "computed_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "provisional": True,
+        "breadth": round(s["breadth"], 1) if "breadth" in s else None,
+        "limit": round(s["limit"], 1) if "limit" in s else None,
+        "broken": round(s["broken"], 1) if "broken" in s else None,
+        "hot": round(s["hot"], 1) if "hot" in s else None,
+        "index": round(s["index"], 1) if "index" in s else None,
+        # 明细（便于核对，不影响页面展示）
+        "detail": {
+            "universe": universe, "up": snap.get("up"), "down": snap.get("down"),
+            "flat": snap.get("flat"), "up5": snap.get("up5"), "down5": snap.get("down5"),
+            "limit_up": snap.get("limit_up"), "limit_down": snap.get("limit_down"),
+            "broken": snap.get("broken"), "limit_height": snap.get("limit_height"),
+            "promote_rate": snap.get("promote_rate"),
+            "amount_yi": snap.get("amount_yi"), "amount_ma20": round(amt_ma20, 2) if amt_ma20 else None,
+            "index_pct": snap.get("index_pct"), "hot": snap.get("hot"),
+        },
+    }
+    return out
+
+
+def compute_intraday(force=False):
+    """抓一次全市场实时快照并计算当日盘中评分（非交易时段返回 stale）
+
+    45 秒内重复调用直接返回上次结果：页面自动估算 + 手动点按钮不会重复抓全市场。
+    """
+    now = time.time()
+    if not force and _INTRA_CACHE["res"] is not None and (now - _INTRA_CACHE["ts"]) < 45:
+        return _INTRA_CACHE["res"]
+    try:
+        import realtime_snapshot as rt
+    except Exception as e:
+        return {"ok": False, "error": "realtime_snapshot 不可用: %s" % e}
+    try:
+        snap = rt.snapshot()
+    except Exception as e:
+        return {"ok": False, "error": "抓取实时行情失败: %s" % e}
+    if not snap:
+        return {"ok": False, "error": "抓不到实时行情（网络或数据源异常）"}
+    today = time.strftime("%Y-%m-%d")
+    if snap.get("date") != today:
+        res = {"ok": False, "stale": True, "date": snap.get("date"),
+               "message": "当前非交易时段（行情日期 %s），无法计算盘中评分" % snap.get("date")}
+        _INTRA_CACHE.update({"ts": now, "res": res})
+        return res
+    res = compute_from_snapshot(snap, today)
+    _INTRA_CACHE.update({"ts": time.time(), "res": res})
+    return res
 
 
 def compute_all():

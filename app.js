@@ -11,7 +11,8 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('A股人气雷达 已加载');
     // auto load on page open
     fetchData();
-    loadScoreToday();           // 页头「今日情绪评分」：只读本地评分，不触发重算
+    // 页头「今日情绪评分」：先读本地正式评分；交易时段再尝试盘中估算
+    loadScoreToday().then(maybeLoadIntradayScore);
 });
 
 // ==================== 数据获取 ====================
@@ -3316,8 +3317,12 @@ async function loadScoreToday() {
 
 function renderScoreToday(d) {
     const total = d.total;
+    const prov = !!d.provisional;
+    const qt = d.quote_time ? String(d.quote_time).slice(0, 5) : '';
 
     // 页头右上角：今日情绪评分
+    const hLive = document.getElementById('hs-live');
+    if (hLive) hLive.classList.toggle('hidden', !prov);
     const hScore = document.getElementById('hs-score');
     if (hScore) {
         hScore.textContent = total == null ? '--' : Number(total).toFixed(1);
@@ -3329,19 +3334,21 @@ function renderScoreToday(d) {
         hLabel.className = 'ms-tag ' + scLabelCls(total);
     }
     const hDate = document.getElementById('hs-date');
-    if (hDate) hDate.textContent = d.date || '—';
+    if (hDate) hDate.textContent = (d.date || '—') + (prov && qt ? ' ' + qt : '');
     const hBox = document.getElementById('market-score-box');
     if (hBox) hBox.title = '情绪评分 ' + (total == null ? '--' : total) + ' 分（' + (d.label || '—') + '）· ' + (d.date || '') +
+        (prov ? ' ' + qt + '（盘中估算，未收盘）' : '') +
         ' · 五因子加权，只反映当日市场情绪，不构成买卖建议';
 
     const dEl = document.getElementById('sc-date');
-    if (dEl) dEl.textContent = d.date || '—';
+    if (dEl) dEl.textContent = (d.date || '—') + (prov && qt ? ' ' + qt + ' 盘中' : '');
     const cEl = document.getElementById('sc-comp');
     if (cEl) {
         const comp = d.completeness == null ? null : Number(d.completeness);
         cEl.className = 'sc-comp' + (comp != null && comp < 0.9 ? ' warn' : '');
         const ts = d.computed_at ? String(d.computed_at) : '';
-        cEl.textContent = '完整度 ' + (comp == null ? '—' : Math.round(comp * 100) + '%') +
+        cEl.textContent = (prov ? '盘中估算 · ' : '') +
+            '完整度 ' + (comp == null ? '—' : Math.round(comp * 100) + '%') +
             ' · ' + (d.model_version || '—') +
             (ts ? ' · ' + ts.slice(5, 16) + ' 计算' : '') +
             (comp != null && comp < 0.9 ? '（降级评分）' : '');
@@ -3365,9 +3372,13 @@ function renderScoreToday(d) {
     const al = document.getElementById('sc-alerts');
     if (al) {
         const items = String(d.alerts || '').split('；').filter(function (x) { return x.trim(); });
-        if (items.length) {
+        const parts = [];
+        if (prov) parts.push('⏳ 盘中估算（未收盘）：' + (qt ? '行情时间 ' + qt + '，' : '') +
+            '收盘后会以正式评分覆盖，仅供参考');
+        if (items.length) parts.push('<b>⚠ 风险提示：</b>' + items.map(escHtml).join(' ｜ '));
+        if (parts.length) {
             al.className = 'sc-alerts';
-            al.innerHTML = '<b>⚠ 风险提示：</b>' + items.map(escHtml).join(' ｜ ');
+            al.innerHTML = parts.join('<br>');
         } else {
             al.className = 'sc-alerts none';
             al.innerHTML = '✓ 暂无触发风险警报' +
@@ -3678,6 +3689,50 @@ async function loadScoreQuality() {
         box.innerHTML = html;
     } catch (e) {
         box.innerHTML = '<div class="sc-empty">加载失败：' + escHtml(e.message) + '</div>';
+    }
+}
+
+function scIsTradingWindow() {
+    const now = new Date();
+    const wd = now.getDay();
+    if (wd === 0 || wd === 6) return false;
+    const mins = now.getHours() * 60 + now.getMinutes();
+    return mins >= 9 * 60 + 30 && mins <= 15 * 60 + 5;
+}
+
+async function maybeLoadIntradayScore() {
+    // 交易时段打开页面：自动抓一次盘中估算（约 5~12 秒），失败就保持正式评分
+    if (!scIsTradingWindow()) return;
+    const today = ymdLocal(new Date());
+    if (scState.today && scState.today.date === today && !scState.today.provisional) return;
+    try {
+        const r = await (await fetch('/api/score/intraday', { cache: 'no-store' })).json();
+        if (r && r.ok) {
+            scState.today = r;
+            renderScoreToday(r);
+        }
+    } catch (e) { /* 静默：保留本地正式评分 */ }
+}
+
+async function scoreIntraday() {
+    const btn = document.getElementById('sc-intraday-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '抓取中…'; }
+    try {
+        const r = await (await fetch('/api/score/intraday', { cache: 'no-store' })).json();
+        if (!r || !r.ok) {
+            if (r && r.stale) {
+                alert(r.message || '当前非交易时段，无法计算盘中评分');
+            } else {
+                alert('盘中估算失败：' + ((r && r.error) || '未知错误'));
+            }
+            return;
+        }
+        scState.today = r;
+        renderScoreToday(r);
+    } catch (e) {
+        alert('盘中估算失败：' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '⚡ 盘中估算'; }
     }
 }
 

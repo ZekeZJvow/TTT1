@@ -18,7 +18,7 @@
             <div class="market-score" id="market-score-box" title="情绪评分 = 五因子加权（0–100），只反映当日市场情绪，不构成买卖建议">
                 <div class="ms-label">今日情绪评分</div>
                 <div class="ms-value"><span id="hs-score">--</span><span class="ms-unit">分</span></div>
-                <div class="ms-sub"><span class="ms-tag" id="hs-label">—</span><span id="hs-date">—</span></div>
+                <div class="ms-sub"><span class="ms-tag ms-live hidden" id="hs-live">盘中</span><span class="ms-tag" id="hs-label">—</span><span id="hs-date">—</span></div>
             </div>
         </header>
 
@@ -538,6 +538,8 @@
                 <div class="sc-head">
                     <h2>🧮 情绪评分 · 历史回测</h2>
                     <div class="sc-head-actions">
+                        <button class="mini-btn live-btn" id="sc-intraday-btn" onclick="scoreIntraday()"
+                                title="盘中抓一次全市场实时行情（约 5~12 秒），按此刻数据估算今日情绪评分（不写库）">⚡ 盘中估算</button>
                         <button class="mini-btn" id="sc-rebuild-btn" onclick="scoreRebuild()">↻ 重算评分</button>
                         <button class="mini-btn" onclick="scoreExportCsv()" title="导出历史评分 + 回测汇总（CSV，Excel 可直接打开）">⬇ 导出 CSV</button>
                     </div>

@@ -33,6 +33,7 @@ _WORKERS = 6
 _MAIN = ("600", "601", "603", "605", "000", "001", "002", "003")
 _SH_IDX = "sh000001"      # 上证综指（覆盖沪市全部）
 _SZ_IDX = "sz399106"      # 深证综指（覆盖深市全部）
+_HS300 = "sh000300"       # 沪深300（情绪评分的指数确认因子）
 
 
 def sina_symbol(code):
@@ -117,6 +118,22 @@ def _limit_price(prev_close):
     return ((int(round(prev_close * 1000)) * 11 + 50) // 100) / 100.0
 
 
+def _limit_mult(code, is_st):
+    """涨跌停幅度（与 tools/build_day_stats.py 完全一致）"""
+    if code.startswith(("300", "301", "688", "689")):
+        return 1.20
+    if code.startswith(("4", "8", "92")):
+        return 1.30
+    if is_st:
+        return 1.05
+    return 1.10
+
+
+def _round2(x):
+    """四舍五入到分（与 build_day_stats.round2 一致）"""
+    return int(round(x * 100)) / 100.0
+
+
 def _breadth_from_em(trade_date):
     """东财实时列表（与同花顺完全一致）；失败返回 None"""
     try:
@@ -147,11 +164,12 @@ def snapshot(with_pool=True, use_em=True):
 
     t0 = time.time()
     quotes = fetch_quotes(codes)
-    idx = fetch_by_symbols([_SH_IDX, _SZ_IDX], {_SH_IDX: _SH_IDX, _SZ_IDX: _SZ_IDX})
+    idx = fetch_by_symbols([_SH_IDX, _SZ_IDX, _HS300],
+                           {_SH_IDX: _SH_IDX, _SZ_IDX: _SZ_IDX, _HS300: _HS300})
     elapsed = round(time.time() - t0, 1)
     if not quotes:
         return None
-    sh, sz = idx.get(_SH_IDX), idx.get(_SZ_IDX)
+    sh, sz, hs300 = idx.get(_SH_IDX), idx.get(_SZ_IDX), idx.get(_HS300)
 
     # 基准行情日期：取两个指数的时间（最权威），否则取多数股票
     ref_date = (sh or {}).get("date") or (sz or {}).get("date")
@@ -162,8 +180,10 @@ def snapshot(with_pool=True, use_em=True):
         ref_date = max(cnt.items(), key=lambda kv: kv[1])[0] if cnt else None
     ref_clock = (sh or {}).get("clock") or ""
 
-    # ① 涨跌家数（新浪兜底口径：只统计"行情日期=当日"的股票，停牌/长期停牌剔除）
+    # ① 涨跌家数 + 情绪评分所需的盘中统计
     up = down = flat = susp = 0
+    up5 = down5 = lu = ld = br = 0
+    lu_codes = set()
     amount_sum = 0.0
     for code, q in quotes.items():
         pc, pr = q.get("prev_close"), q.get("price")
@@ -177,12 +197,31 @@ def snapshot(with_pool=True, use_em=True):
             down += 1
         else:
             flat += 1
+        chg = (pr / pc - 1) * 100
+        if chg > 5:
+            up5 += 1
+        elif chg < -5:
+            down5 += 1
+        mult = _limit_mult(code, code in st)
+        lim_up = _round2(pc * mult)
+        lim_dn = _round2(pc * (2 - mult))
+        if pr >= lim_up - 0.001:
+            lu += 1
+            lu_codes.add(code)
+        elif pr <= lim_dn + 0.001:
+            ld += 1
+        hi = q.get("high")
+        if hi and hi >= lim_up - 0.001 and pr < lim_up - 0.001:
+            br += 1
 
     out = {"date": ref_date, "quote_date": ref_date, "quote_time": ref_clock,
            "up": up, "down": down, "flat": flat, "susp": susp,
            "total": up + down + flat + susp, "breadth_src": "sina_rt",
            "amount_yi": None, "sh_yi": None, "sz_yi": None,
-           "final": 0, "sealed": 0, "score": None, "elapsed": elapsed}
+           "final": 0, "sealed": 0, "score": None, "elapsed": elapsed,
+           "up5": up5, "down5": down5, "limit_up": lu, "limit_down": ld,
+           "broken": br, "limit_height": 0, "promote_rate": None,
+           "index_pct": None, "hot": None, "universe": up + down + flat}
 
     # ② 涨跌家数优先用东财（与同花顺完全一致）
     if use_em:
@@ -193,6 +232,12 @@ def snapshot(with_pool=True, use_em=True):
                         "susp": em.get("suspended") or out["susp"],
                         "breadth_src": "em_clist"})
 
+    out["universe"] = (out.get("up") or 0) + (out.get("down") or 0) + (out.get("flat") or 0)
+
+    # ②b 沪深300 盘中涨跌幅（情绪评分的「指数确认」因子）
+    if hs300 and hs300.get("prev_close") and hs300.get("price"):
+        out["index_pct"] = round((hs300["price"] / hs300["prev_close"] - 1) * 100, 3)
+
     # ③ 两市成交额（优先两个指数的官方成交额）
     sh_yi = (sh["amount"] / 1e8) if (sh and sh.get("amount")) else None
     sz_yi = (sz["amount"] / 1e8) if (sz and sz.get("amount")) else None
@@ -201,6 +246,72 @@ def snapshot(with_pool=True, use_em=True):
         out["amount_yi"] = round(sh_yi + sz_yi, 2)
     else:
         out["amount_yi"] = round(amount_sum / 1e8, 2)
+
+    # ③b 晋级率 + 连板高度（与 build_day_stats 同口径，用今日盘中涨停集合）
+    if ref_date and lu_codes:
+        prev_days = m._read(lambda c, d=ref_date: [r[0] for r in c.execute(
+            "SELECT DISTINCT `trade_date` FROM `daily_kline` WHERE `trade_date` < ? "
+            "ORDER BY `trade_date` DESC LIMIT 1", (d,)).fetchall()], [])
+        if prev_days:
+            pd = prev_days[0]
+            rows1 = m._read(lambda c, d=pd: c.execute(
+                "SELECT k.`stock_code`, k.`close`, k.`prev_close`, COALESCE(s.`is_st`,0) AS is_st "
+                "FROM `daily_kline` k LEFT JOIN `stock` s ON s.`code`=k.`stock_code` "
+                "WHERE k.`trade_date`=? AND k.`prev_close`>0 AND k.`close` IS NOT NULL",
+                (d,)).fetchall(), [])
+            prev_lu = set()
+            for r1 in rows1:
+                c1 = r1["stock_code"]
+                if r1["close"] >= _round2(r1["prev_close"] * _limit_mult(c1, r1["is_st"])) - 0.001:
+                    prev_lu.add(c1)
+            if prev_lu:
+                out["promote_rate"] = round(len(lu_codes & prev_lu) / len(prev_lu) * 100, 2)
+
+        # 连板高度：对今日涨停股，沿历史日K往前数连续涨停天数，再 +1（今天）
+        codes_list = list(lu_codes)[:800]
+        qmarks = ",".join("?" * len(codes_list))
+        hist = m._read(lambda c: c.execute(
+            "SELECT `trade_date`,`stock_code`,`close`,`prev_close` FROM `daily_kline` "
+            "WHERE `stock_code` IN (%s) AND `trade_date` < ? "
+            "ORDER BY `stock_code`, `trade_date` DESC" % qmarks,
+            tuple(codes_list) + (ref_date,)).fetchall(), [])
+        by_code = {}
+        for r2 in hist:
+            by_code.setdefault(r2["stock_code"], []).append(
+                (r2["close"], r2["prev_close"]))
+        best = 0
+        for code2, arr in by_code.items():
+            cnt = 0
+            for close2, pc2 in arr:
+                if close2 is None or not pc2:
+                    break
+                if close2 >= _round2(pc2 * _limit_mult(code2, code2 in st)) - 0.001:
+                    cnt += 1
+                else:
+                    break
+            if cnt > best:
+                best = cnt
+        out["limit_height"] = best + 1
+
+    # ③c 人气股盘中表现（当日人气榜前 30，用实时涨跌幅）
+    if ref_date:
+        hot_rows = m._read(lambda c, d=ref_date: c.execute(
+            "SELECT `stock_code` FROM `hotlist_snapshot` "
+            "WHERE `trade_date`=? AND `rank`<=30", (d,)).fetchall(), [])
+        vals, ups = [], 0
+        for hr in hot_rows:
+            qq = quotes.get(str(hr["stock_code"]))
+            if not qq or qq.get("suspended") or not qq.get("prev_close") or not qq.get("price"):
+                continue
+            if ref_date and qq.get("date") != ref_date:
+                continue
+            chg2 = (qq["price"] / qq["prev_close"] - 1) * 100
+            vals.append(chg2)
+            if chg2 > 0:
+                ups += 1
+        if vals:
+            out["hot"] = {"avg": round(sum(vals) / len(vals), 3),
+                          "up_ratio": round(ups / len(vals), 3), "n": len(vals)}
 
     # ④ 盘中封板率（沪深主板非ST）——基准日取"行情日期之前的最近两个交易日"
     if with_pool and ref_date:

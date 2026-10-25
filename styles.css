@@ -1368,6 +1368,7 @@ body {
 .market-score .ms-value #ms-score.down { color: #2ecc71; }
 .market-score .ms-sub { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-size: .76rem; color: #9aa0a6; white-space: nowrap; }
 .market-score .ms-sub .ms-tag { padding: 1px 9px; border-radius: 10px; background: rgba(255,255,255,.08); color: #d8dde3; font-weight: 600; }
+.market-score .ms-sub .ms-live { background: rgba(243,156,18,.2); color: #f5b041; }
 .market-score .ms-sub .ms-tag.lv-strong { background: rgba(255,82,82,.16); color: #ff6b6b; }
 .market-score .ms-sub .ms-tag.lv-good { background: rgba(243,156,18,.16); color: #f5b041; }
 .market-score .ms-sub .ms-tag.lv-mid { background: rgba(245,215,110,.14); color: #f5d76e; }
