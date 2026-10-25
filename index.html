@@ -411,9 +411,11 @@
                 </div>
                 <div class="date-row">
                     <span class="date-row-label">日期范围：</span>
-                    <input type="date" id="mh-date-start" class="mh-year mh-dateq" title="开始日期（默认 = 当前日期减 3 个月）">
+                    <input type="text" id="mh-date-start" class="mh-year mh-dateq mh-date-input" maxlength="12" autocomplete="off"
+                           placeholder="YYYY-MM-DD" title="开始日期：可直接输入或粘贴，支持 2026-07-25 / 2026/07/25 / 20260725">
                     <span class="range-sep">~</span>
-                    <input type="date" id="mh-date-end" class="mh-year mh-dateq" title="结束日期（默认 = 当前日期）">
+                    <input type="text" id="mh-date-end" class="mh-year mh-dateq mh-date-input" maxlength="12" autocomplete="off"
+                           placeholder="YYYY-MM-DD" title="结束日期：可直接输入或粘贴，支持 2026-07-25 / 2026/07/25 / 20260725">
                     <button class="mini-btn" onclick="mhQueryDate()">查询</button>
                     <span class="date-row-label">评分筛选：</span>
                     <select id="mh-score-op" class="mh-year" onchange="mhApplyScore()" title="评分筛选条件">

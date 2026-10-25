@@ -2463,13 +2463,54 @@ function mhBuildDateDefaults() {
     }
 }
 
+function mhParseDate(v) {
+    // 支持：2026-07-25 / 2026/7/25 / 2026.7.25 / 20260725 / 2026年7月25日
+    let t = String(v == null ? '' : v).trim();
+    if (!t) return '';
+    t = t.replace(/[年月]/g, '-').replace(/日/g, '').replace(/[./]/g, '-').replace(/\s+/g, '');
+    let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (!m) m = t.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (!m) return '';
+    const y = Number(m[1]), mo = Number(m[2]), da = Number(m[3]);
+    if (mo < 1 || mo > 12 || da < 1 || da > 31) return '';
+    const dt = new Date(y, mo - 1, da);
+    if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== da) return '';
+    return y + '-' + mhPad(mo) + '-' + mhPad(da);
+}
+
+function mhNormalizeDateInput(el) {
+    if (!el) return '';
+    const raw = String(el.value || '').trim();
+    if (!raw) return '';
+    const d = mhParseDate(raw);
+    if (d) el.value = d;
+    return d;
+}
+
 function mhQueryDate() {
     // 按「开始 ~ 结束」查询（都空则忽略；只填一个就只按那一个端点查）
     const s = document.getElementById('mh-date-start');
     const e = document.getElementById('mh-date-end');
-    const st = (s && s.value) || '';
-    const en = (e && e.value) || '';
-    if (!st && !en) return;
+    const sRaw = s ? String(s.value || '').trim() : '';
+    const eRaw = e ? String(e.value || '').trim() : '';
+    if (!sRaw && !eRaw) return;
+    const st = mhNormalizeDateInput(s);
+    const en = mhNormalizeDateInput(e);
+    if (sRaw && !st) {
+        alert('开始日期格式不正确。\n可以输入或粘贴：2026-07-25、2026/07/25 或 20260725');
+        if (s) { s.focus(); s.select(); }
+        return;
+    }
+    if (eRaw && !en) {
+        alert('结束日期格式不正确。\n可以输入或粘贴：2026-07-25、2026/07/25 或 20260725');
+        if (e) { e.focus(); e.select(); }
+        return;
+    }
+    if (st && en && st > en) {
+        alert('开始日期不能晚于结束日期：' + st + ' > ' + en);
+        if (s) { s.focus(); s.select(); }
+        return;
+    }
     mhStart = st; mhEnd = en;
     mhMonth = null; mhYearSel = '';
     mhBuildYears();
@@ -3699,4 +3740,16 @@ function scoreExportCsv() {
 
 window.addEventListener('resize', function () {
     if (scState.chart) scState.chart.resize();
+});
+
+// 日期范围输入框：支持直接输入 / 粘贴，回车查询，失焦自动规范成 YYYY-MM-DD
+document.addEventListener('DOMContentLoaded', function () {
+    ['mh-date-start', 'mh-date-end'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('blur', function () { mhNormalizeDateInput(el); });
+        el.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter') { ev.preventDefault(); mhNormalizeDateInput(el); mhQueryDate(); }
+        });
+    });
 });
