@@ -2414,13 +2414,13 @@ function mhApplyScoreFilter(rows) {
     const v = Number(mhScoreVal);
     if (!isFinite(v)) return rows;
     return rows.filter(function (r) {
-        if (r.score == null) return false;
+        if (r.emotion == null) return false;
         switch (mhScoreOp) {
-            case '>=': return r.score >= v;
-            case '>': return r.score > v;
-            case '<=': return r.score <= v;
-            case '<': return r.score < v;
-            case '=': return r.score === v;
+            case '>=': return r.emotion >= v;
+            case '>': return r.emotion > v;
+            case '<=': return r.emotion <= v;
+            case '<': return r.emotion < v;
+            case '=': return r.emotion === v;
             default: return true;
         }
     });
@@ -2596,10 +2596,12 @@ function renderMarketHistory(rows) {
         mhSyncMonthUI();
     }
     if (sum) {
+        const emo = last.emotion;
         sum.innerHTML =
             '<span class="mh-item">最新交易日 <b>' + escHtml(last.date) + '</b></span>' +
-            '<span class="mh-item">行情评分 <b class="' + (last.score == null ? '' : (last.score >= 70 ? 'up-strong' : (last.score >= 50 ? 'mid' : 'down'))) + '">' +
-                (last.score == null ? '--' : last.score) + '</b></span>' +
+            '<span class="mh-item">情绪评分 <b class="' + (emo == null ? '' : (emo >= 70 ? 'up-strong' : (emo >= 50 ? 'mid' : 'down'))) + '"' +
+                (emo == null ? ' title="盘中暂无情绪评分，收盘后生成"' : '') + '>' +
+                (emo == null ? '--' : Number(emo).toFixed(1)) + '</b></span>' +
             '<span class="mh-item">上涨 <b class="up">' + last.up + '</b></span>' +
             '<span class="mh-item">下跌 <b class="down">' + last.down + '</b></span>' +
             '<span class="mh-item">成交额 <b class="up-strong">' + fmtMhAmount(last.amount) + '</b></span>' +
@@ -2621,12 +2623,13 @@ function renderMarketHistory(rows) {
     }
     if (body) {
         body.innerHTML = rows.slice().reverse().map(function (x) {
-            const cls = (x.score == null) ? 'dim' : (x.score >= 70 ? 'up-strong' : (x.score >= 50 ? 'mid' : 'down'));
+            const cls = (x.emotion == null) ? 'dim' : (x.emotion >= 70 ? 'up-strong' : (x.emotion >= 50 ? 'mid' : 'down'));
             const ratio = x.down ? (x.up / x.down).toFixed(2) : '—';
             return '<tr>' +
                 '<td>' + escHtml(x.date) +
                     (x.src === 'intraday' ? ' <span class="mh-live">盘中</span>' : '') + '</td>' +
-                '<td class="num ' + cls + '">' + (x.score == null ? '—' : x.score) + '</td>' +
+                '<td class="num ' + cls + '"' + (x.emotion == null ? ' title="盘中暂无情绪评分，收盘后生成"' : '') + '>' +
+                    (x.emotion == null ? '—' : Number(x.emotion).toFixed(1)) + '</td>' +
                 '<td class="num up">' + x.up + '</td>' +
                 '<td class="num down">' + x.down + '</td>' +
                 '<td class="num dim">' + x.flat + '</td>' +
@@ -2661,14 +2664,14 @@ function renderMarketHistory(rows) {
                 if (!ps || !ps.length) return '';
                 const x = rows[ps[0].dataIndex] || {};
                 return '<b>' + escHtml(x.date || '') + '</b>' +
-                    '<br>行情评分：' + (x.score == null ? '—' : x.score) +
+                    '<br>情绪评分：' + (x.emotion == null ? '—' : Number(x.emotion).toFixed(1)) +
                     '<br>上涨家数：' + x.up +
                     '<br>下跌家数：' + x.down +
                     '<br>成交额总计：' + fmtMhAmount(x.amount) +
                     '<br>较上一日：' + fmtMhDiff(x.amount_diff);
             }
         },
-        legend: { data: ['行情评分', '上涨家数', '下跌家数'], textStyle: { color: '#a0a0a0' }, top: 4 },
+        legend: { data: ['情绪评分', '上涨家数', '下跌家数'], textStyle: { color: '#a0a0a0' }, top: 4 },
         grid: { left: 56, right: 64, top: 46, bottom: 58 },
         xAxis: {
             type: 'category', data: rows.map(function (x) { return x.date.slice(5); }),
@@ -2686,8 +2689,8 @@ function renderMarketHistory(rows) {
               axisLabel: { color: '#9aa0a6' }, splitLine: { show: false } }
         ],
         series: [
-            { name: '行情评分', type: 'line', yAxisIndex: 0, data: rows.map(function (x) { return x.score; }),
-              smooth: true, symbolSize: 6, connectNulls: true,
+            { name: '情绪评分', type: 'line', yAxisIndex: 0, data: rows.map(function (x) { return x.emotion; }),
+              smooth: true, symbolSize: 6, connectNulls: false,
               itemStyle: { color: '#f39c12' }, lineStyle: { width: 3 } },
             { name: '上涨家数', type: 'bar', yAxisIndex: 1, data: rows.map(function (x) { return x.up; }),
               itemStyle: { color: 'rgba(231,76,60,.62)' } },

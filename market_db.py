@@ -2649,7 +2649,7 @@ def daily_market_stats(max_days=45, prefer_screening=True):
     """按日行情统计（读 market_seal_stats，秒出；带 120 秒缓存）
 
     返回 [{date, up, down, flat, final, sealed, score, src, breadth_src,
-            amount, amount_prev, amount_diff}]（升序，最多 max_days 天）
+            amount, amount_prev, amount_diff, emotion, emotion_label}]（升序，最多 max_days 天）
 
     · 涨跌家数：优先用 market_breadth（实时抓取，沪深京全部A股口径，与同花顺一致），
                 否则用离线统计里按本地日K算出的全市场家数
@@ -2696,6 +2696,14 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                 mmap[r["trade_date"]] = (r["rz_ye"], r["rq_ye"])
         except Exception:
             mmap = {}
+        # 情绪评分（五因子，收盘后生成；盘中行为空）
+        smap = {}
+        try:
+            for r in conn.execute(
+                    "SELECT `trade_date`,`total`,`label` FROM `score_daily`").fetchall():
+                smap[r["trade_date"]] = (r["total"], r["label"])
+        except Exception:
+            smap = {}
         # 真实选股结果（更权威）
         real = {}
         if prefer_screening:
@@ -2729,10 +2737,12 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                     if (amt is not None and prev_amt is not None) else None)
             prev_amt = amt if amt is not None else prev_amt
             rzye, rqye = mmap.get(d, (None, None))
+            emo, emo_lab = smap.get(d, (None, None))
             out.append({"date": d, "up": up, "down": down, "flat": flat,
                         "final": final, "sealed": sealed, "score": score, "src": src,
                         "breadth_src": bsrc, "amount": amt, "amount_prev": None,
-                        "amount_diff": diff, "rz_ye": rzye, "rq_ye": rqye})
+                        "amount_diff": diff, "rz_ye": rzye, "rq_ye": rqye,
+                        "emotion": emo, "emotion_label": emo_lab})
         return out[-n:]
     rows = _read(_f, []) or []
     if not rows:
