@@ -956,6 +956,12 @@ def market_history_api():
                     "rows": rows, "count": len(rows), "months": months})
 
 
+@app.route("/score")
+def score_page():
+    """情绪评分独立页面（只显示该模块）"""
+    return send_from_directory(os.path.abspath(app.static_folder), "score.html")
+
+
 @app.route("/api/score/today")
 def score_today_api():
     """最新一条情绪评分（5 模块分 + 总分 + 标签 + 警报 + 完整度）"""

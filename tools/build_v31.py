@@ -5,7 +5,8 @@ import os, subprocess, sys, shutil
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(ROOT)
 
-datas = ["index.html", "app.js", "styles.css", "icon.ico", "echarts.min.js",
+datas = ["index.html", "app.js", "score.html", "score_module.js", "score_page.js",
+         "styles.css", "icon.ico", "echarts.min.js",
          "schema.sql", "deploy/mysql_schema.sql",
          "tools/backfill_hotlist.py", "tools/backfill_turnover.py",
          "tools/backfill_kline_all.py", "tools/build_day_stats.py"]

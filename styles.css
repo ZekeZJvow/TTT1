@@ -1590,3 +1590,8 @@ tr.mh-hit-row td { background: rgba(243,156,18,.05); }
     .mode-tabs::-webkit-scrollbar { display: none; }
     .mode-btn { flex: 0 0 auto; padding: 9px 18px; font-size: .92rem; }
 }
+
+/* 独立情绪评分页 */
+.score-page-back { margin-top: 10px; }
+.score-page-back a { text-decoration: none; display: inline-flex; align-items: center; }
+a.mini-btn { text-decoration: none; display: inline-flex; align-items: center; }

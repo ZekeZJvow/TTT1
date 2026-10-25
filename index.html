@@ -539,6 +539,8 @@
                 <div class="sc-head">
                     <h2>🧮 情绪评分 · 历史回测</h2>
                     <div class="sc-head-actions">
+                        <a class="mini-btn" href="/score" target="_blank" rel="noopener"
+                           title="在新标签页单独打开情绪评分页面">↗ 独立页面</a>
                         <button class="mini-btn live-btn" id="sc-intraday-btn" onclick="scoreIntraday()"
                                 title="盘中抓一次全市场实时行情（约 5~12 秒），按此刻数据估算今日情绪评分（不写库）">⚡ 盘中估算</button>
                         <button class="mini-btn" id="sc-rebuild-btn" onclick="scoreRebuild()">↻ 重算评分</button>
@@ -777,6 +779,7 @@
         </div>
     </div>
 
+    <script src="score_module.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
