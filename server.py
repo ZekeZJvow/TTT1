@@ -1012,7 +1012,7 @@ def score_backtest_api():
     start = (request.args.get("start") or "").strip() or None
     end = (request.args.get("end") or "").strip() or None
     idx = (request.args.get("index") or "000300").strip()
-    if idx not in ("000300", "000001"):
+    if idx not in ("000300", "000001", "000688", "399006", "000852"):
         idx = "000300"
     try:
         mc = float(request.args.get("min_completeness", 0) or 0)
