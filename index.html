@@ -30,7 +30,8 @@
         <button id="mode-market" class="mode-btn" onclick="switchMode('market', event)">📈 行情评分走势</button>
         <!-- 条件概率模块：按要求暂时关闭（不在页面显示）。要恢复：删掉下面这行的 style="display:none" -->
         <button id="mode-cond" class="mode-btn" style="display:none" onclick="switchMode('cond', event)">🔮 条件概率</button>
-        <button id="mode-score" class="mode-btn" onclick="switchMode('score', event)">🧮 情绪评分</button>
+        <!-- 情绪评分模块：按要求关闭（右上角评分保留；独立页 /score 仍可用）。要恢复：删掉 style="display:none" -->
+        <button id="mode-score" class="mode-btn" style="display:none" onclick="switchMode('score', event)">🧮 情绪评分</button>
             <!-- 数据管理模块：按需求暂时关闭（不在页面显示）。要恢复：删掉下面这行的 style="display:none" -->
         <button id="mode-db" class="mode-btn" style="display:none" onclick="switchMode('db', event)">🗄️ 数据管理</button>
         </nav>
