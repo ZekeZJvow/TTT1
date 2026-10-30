@@ -151,7 +151,8 @@
 
         <!-- ============ 面板二：动态选股 ============ -->
         <section id="panel-screen" class="panel hidden">
-            <div class="screen-intro">
+            <!-- 动态选股说明区：按要求隐藏（标题/说明/条件不再显示）。要恢复：删掉 style="display:none" -->
+            <div class="screen-intro" style="display:none">
                 <h2>动态选股 · 参数化扫描</h2>
                 <p class="screen-desc">
                     输入任意交易日，系统自动<b>推导前一交易日</b>、扫描<b>全市场</b>日K，
@@ -189,7 +190,8 @@
 
             <div id="screen-result" class="hidden">
 
-                <div class="screen-meta">
+                <!-- 扫描统计卡片：按要求隐藏（数据所属交易日/前一交易日/扫描范围/耗时）。要恢复：删掉 style="display:none" -->
+                <div class="screen-meta" style="display:none">
                     <div class="meta-item"><span class="meta-label">数据所属交易日</span><span id="sc-target" class="meta-value"></span></div>
                     <div class="meta-item"><span class="meta-label">前一交易日</span><span id="sc-prev" class="meta-value"></span></div>
                     <div class="meta-item"><span class="meta-label">扫描范围</span><span id="sc-universe" class="meta-value"></span></div>
@@ -201,7 +203,8 @@
                     <div id="funnel-body"></div>
                 </div>
 
-                <div class="verify-box" id="verify-box"></div>
+                <!-- 语义交叉校验：按要求隐藏（不再显示）。要恢复：删掉 style="display:none" -->
+                <div class="verify-box" id="verify-box" style="display:none"></div>
 
                 <div class="sub-tabs">
                     <button class="sub-btn active" data-key="rows" onclick="switchScreenTable('rows', event)">入选池 <em id="cnt-rows">0</em></button>
