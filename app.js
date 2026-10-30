@@ -2065,7 +2065,9 @@ let multiAvailable = [];      // 可选的日期
 let multiData = null;
 let multiLoaded = false;
 let multiView = 'date';      // 'date' = 按日期并列（默认）; 'stock' = 按股票对照
+let multiChipsExpanded = false; // 日期标签默认只显示最近 10 个
 const MULTI_MAX = 6;          // 最多同时对照几个日期
+const MULTI_CHIP_LIMIT = 10;  // 默认显示的日期标签数
 
 async function loadMulti(force) {
     const note = document.getElementById('multi-note');
@@ -2180,13 +2182,32 @@ function renderMulti() {
 function renderMultiChips() {
     const box = document.getElementById('multi-date-chips');
     if (!box) return;
+    const all = multiAvailable || [];
     const dates = multiData.dates || [];
-    box.innerHTML = (multiAvailable || []).map(function (d) {
+    // 默认只显示最近 10 个；已选中的日期即使较旧也保留，避免看不到
+    let show = multiChipsExpanded ? all.slice() : all.slice(0, MULTI_CHIP_LIMIT);
+    dates.forEach(function (d) {
+        if (show.indexOf(d) < 0) show.push(d);
+    });
+    show.sort(function (a, b) { return a < b ? 1 : -1; });
+
+    let html = show.map(function (d) {
         const on = dates.indexOf(d) >= 0 ? ' sel' : '';
         return '<span class="day-chip has' + on + '" style="cursor:pointer" title="点击' +
                (on ? '取消' : '加入') + '对照" onclick="toggleMultiDate(\'' + d + '\')">' +
                escHtml(d) + '</span>';
     }).join('');
+    if (all.length > MULTI_CHIP_LIMIT) {
+        html += '<span class="day-chip multi-more" onclick="toggleMultiChips()" title="' +
+                (multiChipsExpanded ? '收起，只显示最近10个日期' : '显示全部 ' + all.length + ' 个日期') + '">' +
+                (multiChipsExpanded ? '收起' : '更多 +' + (all.length - MULTI_CHIP_LIMIT)) + '</span>';
+    }
+    box.innerHTML = html;
+}
+
+function toggleMultiChips() {
+    multiChipsExpanded = !multiChipsExpanded;
+    renderMultiChips();
 }
 
 function renderMultiNote() {

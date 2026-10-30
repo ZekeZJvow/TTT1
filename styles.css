@@ -1246,6 +1246,8 @@ tr.mh-hit-row td { background: rgba(243,156,18,.05); }
 .day-chip.none { opacity: 0.45; }
 .day-chip.sel { outline: 2px solid #4ea1ff; outline-offset: 1px; }
 .day-chip:hover { filter: brightness(1.35); }
+.day-chip.multi-more { background: rgba(52,152,219,.18); border-color: rgba(93,173,226,.55); color: #8ecbff; font-weight: 600; }
+
 
 /* 连续上榜 */
 .col-streak { text-align: center; white-space: nowrap; }
