@@ -2568,7 +2568,7 @@ async function loadMarketHistory(force) {
     mhBuildDateDefaults();
     mhSyncMonthUI();
     const body = document.getElementById('mh-body');
-    if (body) body.innerHTML = '<tr><td colspan="12" class="empty-cell">正在统计…</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="10" class="empty-cell">正在统计…</td></tr>';
     let r;
     try {
         let _u = '/api/market-history?days=45';
@@ -2576,11 +2576,11 @@ async function loadMarketHistory(force) {
         if (mhEnd) _u += '&end=' + encodeURIComponent(mhEnd);
         r = await (await fetch(_u)).json();
     } catch (e) {
-        if (body) body.innerHTML = '<tr><td colspan="12" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="10" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
         return;
     }
     if (!r || !r.success) {
-        if (body) body.innerHTML = '<tr><td colspan="12" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="10" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
         return;
     }
     mhLoaded = true;
@@ -2649,7 +2649,7 @@ function renderMarketHistory(rows) {
     const sum = document.getElementById('mh-summary');
     if (!rows.length) {
         const emptyMsg = mhScoreActive() ? '没有符合评分筛选条件的交易日' : '该日期范围内暂无数据';
-        if (body) body.innerHTML = '<tr><td colspan="12" class="empty-cell">' + emptyMsg + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="10" class="empty-cell">' + emptyMsg + '</td></tr>';
         if (sum) sum.innerHTML = '<span class="mh-item dim">' + emptyMsg + '</span>';
         if (mhChart) mhChart.clear();
         return;
@@ -2702,7 +2702,6 @@ function renderMarketHistory(rows) {
     if (body) {
         body.innerHTML = rows.slice().reverse().map(function (x) {
             const cls = (x.emotion == null) ? 'dim' : (x.emotion >= 70 ? 'up-strong' : (x.emotion >= 50 ? 'mid' : 'down'));
-            const ratio = x.down ? (x.up / x.down).toFixed(2) : '—';
             return '<tr' + (x._hit ? ' class="mh-hit-row"' : '') + '>' +
                 '<td>' + escHtml(x.date) +
                     (x._hit ? ' <span class="mh-hit">命中</span>' : '') +
@@ -2711,8 +2710,6 @@ function renderMarketHistory(rows) {
                     (x.emotion == null ? '—' : Number(x.emotion).toFixed(1)) + '</td>' +
                 '<td class="num up">' + x.up + '</td>' +
                 '<td class="num down">' + x.down + '</td>' +
-                '<td class="num dim">' + x.flat + '</td>' +
-                '<td class="num dim">' + ratio + '</td>' +
                 '<td class="num up-strong">' + fmtMhAmount(x.amount) + '</td>' +
                 '<td class="num ' + mhDiffCls(x.amount_diff) + '">' + fmtMhDiff(x.amount_diff) + '</td>' +
                 '<td class="num ' + mhPctCls(x.zz1000_pct) + '">' + mhFmtPct(x.zz1000_pct) + '</td>' +

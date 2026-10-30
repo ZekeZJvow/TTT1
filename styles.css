@@ -1186,7 +1186,6 @@ body {
 .mh-hit { display: inline-block; margin-left: 5px; padding: 0 6px; border-radius: 8px; background: rgba(243,156,18,.18); color: #f5b041; font-size: .7rem; line-height: 1.5; vertical-align: 1px; }
 tr.mh-hit-row td { background: rgba(243,156,18,.05); }
 
-.mh-score-op-fixed { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 5px 9px; border-radius: 8px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.16); color: #e6e8ea; font-weight: 700; font-size: .9rem; }
 .mh-score-val { width: 90px; }
 .mh-months { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .mh-month-btn { padding: 5px 11px; border-radius: 8px; font-size: .8rem; }

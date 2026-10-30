@@ -419,8 +419,7 @@
                     <input type="text" id="mh-date-end" class="mh-year mh-dateq mh-date-input" maxlength="12" autocomplete="off"
                            placeholder="YYYY-MM-DD" title="结束日期：可直接输入或粘贴，支持 2026-07-25 / 2026/07/25 / 20260725">
                     <button class="mini-btn" onclick="mhQueryDate()">查询</button>
-                    <span class="date-row-label">评分筛选：</span>
-                    <span class="mh-score-op-fixed" title="固定为「小于」">&lt;</span>
+                    <span class="date-row-label">评分筛选（小于）：</span>
                     <input type="number" id="mh-score-val" class="mh-year mh-score-val" placeholder="如 69" step="0.1" oninput="mhApplyScore()" title="评分阈值：筛出情绪评分小于该值的天，并展开当日+后3个交易日">
                     <button class="mini-btn" id="mh-score-clear" onclick="mhClearScore()" style="display:none">清除筛选</button>
                 </div>
@@ -434,8 +433,6 @@
                                 <th class="num">情绪评分</th>
                                 <th class="num">上涨家数</th>
                                 <th class="num">下跌家数</th>
-                                <th class="num">平盘</th>
-                                <th class="num">涨跌比</th>
                                 <th class="num">成交额总计</th>
                                 <th class="num">较上一日</th>
                                 <th class="num">中证1000</th>
