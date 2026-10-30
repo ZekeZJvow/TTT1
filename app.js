@@ -2265,7 +2265,7 @@ let mhEnd = '';
 let mhMonth = null;    // 当前选中的月份（1~12；null = 未选）
 let mhYearSel = '';    // 当前选中的年份（'' = 不限）
 let mhInitDone = false; // 是否已应用「默认年份 = 当前年份」
-let mhScoreOp = '';    // 评分筛选：比较符（'' / >= / > / <= / < / =）
+let mhScoreOp = '<';   // 评分筛选：固定为「小于」（页面上不再提供选择）
 let mhScoreVal = '';   // 评分筛选：阈值
 let mhRawRows = [];    // 最近一次拉取的原始行（未过滤）
 let mhLatest = '';     // 最新有数据的交易日（用于确定年份）
@@ -2403,7 +2403,7 @@ function mhResetRange() {
 }
 
 function mhScoreActive() {
-    return mhScoreOp !== '' && mhScoreVal !== '' && mhScoreVal !== null;
+    return mhScoreVal !== '' && mhScoreVal !== null;
 }
 
 function mhScoreOpText() {
@@ -2452,9 +2452,8 @@ function mhApplyScoreFilter(rows) {
 }
 
 function mhApplyScore() {
-    const op = document.getElementById('mh-score-op');
     const val = document.getElementById('mh-score-val');
-    mhScoreOp = (op && op.value) || '';
+    mhScoreOp = '<';   // 写死：只看小于阈值
     mhScoreVal = (val && val.value !== '' && val.value !== null) ? val.value : '';
     const btn = document.getElementById('mh-score-clear');
     if (btn) btn.style.display = mhScoreActive() ? '' : 'none';
@@ -2462,8 +2461,7 @@ function mhApplyScore() {
 }
 
 function mhClearScore() {
-    mhScoreOp = ''; mhScoreVal = '';
-    const op = document.getElementById('mh-score-op'); if (op) op.value = '';
+    mhScoreOp = '<'; mhScoreVal = '';
     const val = document.getElementById('mh-score-val'); if (val) val.value = '';
     const btn = document.getElementById('mh-score-clear'); if (btn) btn.style.display = 'none';
     renderMarketHistory(mhRawRows);
