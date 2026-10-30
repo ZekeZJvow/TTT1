@@ -1389,6 +1389,10 @@ tr.mh-hit-row td { background: rgba(243,156,18,.05); }
 .mh-summary { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; margin: 4px 0 10px; font-size: .9rem; color: #b0b0b0; }
 .mh-summary .mh-item b { font-size: 1.15rem; margin-left: 4px; }
 .mh-table td, .mh-table th { white-space: nowrap; }
+.mh-table tbody tr.mh-month-row td { background: var(--mh-mc, transparent); }
+.mh-table tbody tr.mh-month-row:hover td { background: rgba(255,255,255,.12); }
+.mh-table td.mh-month-cell { font-weight: 700; color: #dfe4e8; }
+
 .mh-table td.num.mid { color: #f39c12; }
 .mh-table td.num.up, .mh-table td.num.up-strong { color: #ff5252; font-weight: 600; }
 .mh-table td.num.down { color: #2ecc71; }

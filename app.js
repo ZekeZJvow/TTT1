@@ -2472,14 +2472,12 @@ function mhDateFmt(dt) {
 }
 
 function mhBuildDateDefaults() {
-    // 日期范围默认值：开始 = 今天减 3 个月，结束 = 今天（只在未填写时设置，不覆盖用户输入）
+    // 日期范围默认值：开始 = 当年 1 月 1 日，结束 = 今天（只在未填写时设置，不覆盖用户输入）
     const s = document.getElementById('mh-date-start');
     const e = document.getElementById('mh-date-end');
     const now = new Date();
     if (s && !s.value) {
-        const d = new Date(now);
-        d.setMonth(d.getMonth() - 3);
-        s.value = mhDateFmt(d);
+        s.value = now.getFullYear() + '-01-01';
     }
     if (e && !e.value) {
         e.value = mhDateFmt(now);
@@ -2568,7 +2566,7 @@ async function loadMarketHistory(force) {
     mhBuildDateDefaults();
     mhSyncMonthUI();
     const body = document.getElementById('mh-body');
-    if (body) body.innerHTML = '<tr><td colspan="10" class="empty-cell">正在统计…</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="11" class="empty-cell">正在统计…</td></tr>';
     let r;
     try {
         let _u = '/api/market-history?days=45';
@@ -2576,11 +2574,11 @@ async function loadMarketHistory(force) {
         if (mhEnd) _u += '&end=' + encodeURIComponent(mhEnd);
         r = await (await fetch(_u)).json();
     } catch (e) {
-        if (body) body.innerHTML = '<tr><td colspan="10" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="11" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
         return;
     }
     if (!r || !r.success) {
-        if (body) body.innerHTML = '<tr><td colspan="10" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="11" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
         return;
     }
     mhLoaded = true;
@@ -2613,6 +2611,18 @@ function fmtMhAmount(v) {
     const n = Number(v);
     if (!isFinite(n)) return '—';
     return Math.abs(n) >= 10000 ? (n / 10000).toFixed(2) + '万亿' : Math.round(n) + '亿';
+}
+
+const MH_MONTH_BG = {
+    1: 'rgba(93,173,226,.09)', 2: 'rgba(72,201,176,.09)', 3: 'rgba(88,214,141,.09)',
+    4: 'rgba(244,208,63,.08)', 5: 'rgba(245,176,65,.09)', 6: 'rgba(235,152,78,.09)',
+    7: 'rgba(236,112,99,.08)', 8: 'rgba(175,122,197,.11)', 9: 'rgba(84,153,199,.11)',
+    10: 'rgba(69,179,157,.11)', 11: 'rgba(170,183,184,.08)', 12: 'rgba(215,189,226,.09)'
+};
+
+function mhMonthBg(dateStr) {
+    const m = Number(String(dateStr || '').slice(5, 7));
+    return MH_MONTH_BG[m] || 'transparent';
 }
 
 function mhPctCls(v) {
@@ -2649,7 +2659,7 @@ function renderMarketHistory(rows) {
     const sum = document.getElementById('mh-summary');
     if (!rows.length) {
         const emptyMsg = mhScoreActive() ? '没有符合评分筛选条件的交易日' : '该日期范围内暂无数据';
-        if (body) body.innerHTML = '<tr><td colspan="10" class="empty-cell">' + emptyMsg + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="11" class="empty-cell">' + emptyMsg + '</td></tr>';
         if (sum) sum.innerHTML = '<span class="mh-item dim">' + emptyMsg + '</span>';
         if (mhChart) mhChart.clear();
         return;
@@ -2702,7 +2712,10 @@ function renderMarketHistory(rows) {
     if (body) {
         body.innerHTML = rows.slice().reverse().map(function (x) {
             const cls = (x.emotion == null) ? 'dim' : (x.emotion >= 70 ? 'up-strong' : (x.emotion >= 50 ? 'mid' : 'down'));
-            return '<tr' + (x._hit ? ' class="mh-hit-row"' : '') + '>' +
+            const mon = Number(String(x.date || '').slice(5, 7));
+            const rowCls = 'mh-month-row' + (x._hit ? ' mh-hit-row' : '');
+            return '<tr class="' + rowCls + '" style="--mh-mc:' + mhMonthBg(x.date) + '">' +
+                '<td class="mh-month-cell">' + (mon ? mon + '月' : '—') + '</td>' +
                 '<td>' + escHtml(x.date) +
                     (x._hit ? ' <span class="mh-hit">命中</span>' : '') +
                     (x.src === 'intraday' ? ' <span class="mh-live">盘中</span>' : '') + '</td>' +
