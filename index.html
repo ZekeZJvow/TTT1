@@ -385,7 +385,8 @@
 
         <!-- ============ 面板六：行情评分走势 ============ -->
         <section id="panel-market" class="panel hidden">
-            <div class="screen-intro">
+            <!-- 行情走势说明区：按要求隐藏。要恢复：删掉 style="display:none" -->
+            <div class="screen-intro" style="display:none">
                 <h2>行情评分走势 · 每日涨跌家数</h2>
                 <p class="screen-desc">
                     把每天的两项数据放在一起看：<b>情绪评分</b>（五因子加权 0–100，与页头右上角一致）与 <b>上涨 / 下跌家数</b>。
@@ -402,8 +403,8 @@
             <div class="hot-themes-box">
                 <div class="hot-themes-head">
                     <h3>📈 最近走势</h3>
-                    <button class="mini-btn" onclick="loadMarketHistory(true)">↻ 刷新</button>
-                    <button class="mini-btn live-btn" onclick="fetchIntraday()" title="盘中用：抓一次全市场实时行情（约3~5秒），当天就会显示"盘中"数据">🕐 抓今日实时</button>
+                    <button class="mini-btn live-btn" onclick="mhRefreshCombined()"
+                            title="刷新数据；交易时段会顺带抓一次全市场实时行情（约3~5秒）">🔄 刷新 / 抓实时</button>
                 </div>
                 <div class="date-row">
                     <span class="date-row-label">年份：</span>
@@ -423,7 +424,7 @@
                            placeholder="YYYY-MM-DD" title="结束日期：可直接输入或粘贴，支持 2026-07-25 / 2026/07/25 / 20260725">
                     <button class="mini-btn" onclick="mhQueryDate()">查询</button>
                     <span class="date-row-label">评分筛选（小于）：</span>
-                    <input type="number" id="mh-score-val" class="mh-year mh-score-val" placeholder="如 69" step="0.1" oninput="mhApplyScore()" title="评分阈值：筛出情绪评分小于该值的天，并展开当日+后3个交易日">
+                    <input type="number" id="mh-score-val" class="mh-year mh-score-val" value="40" placeholder="如 69" step="0.1" oninput="mhApplyScore()" title="评分阈值：筛出情绪评分小于该值的天，并展开当日+后3个交易日">
                     <button class="mini-btn" id="mh-score-clear" onclick="mhClearScore()" style="display:none">清除筛选</button>
                 </div>
                 <div id="mh-summary" class="mh-summary"></div>
@@ -441,8 +442,8 @@
                                 <th class="num">较上一日</th>
                                 <th class="num">中证1000</th>
                                 <th class="num">中证500</th>
-                                <th class="num">融资余额</th>
-                                <th class="num">融券余额</th>
+                                <th class="num">创业板指</th>
+                                <th class="num">科创50</th>
                             </tr>
                         </thead>
                         <tbody id="mh-body"></tbody>

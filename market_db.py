@@ -2701,7 +2701,7 @@ def daily_market_stats(max_days=45, prefer_screening=True):
         try:
             for r in conn.execute(
                     "SELECT `trade_date`,`code`,`pct` FROM `index_daily` "
-                    "WHERE `code` IN ('000905','000852')").fetchall():
+                    "WHERE `code` IN ('000905','000852','399006','000688')").fetchall():
                 imap.setdefault(r["trade_date"], {})[r["code"]] = r["pct"]
         except Exception:
             imap = {}
@@ -2754,7 +2754,8 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                         "breadth_src": bsrc, "amount": amt, "amount_prev": None,
                         "amount_diff": diff, "rz_ye": rzye, "rq_ye": rqye,
                         "emotion": emo, "emotion_label": emo_lab,
-                        "zz500_pct": idxp.get("000905"), "zz1000_pct": idxp.get("000852")})
+                        "zz500_pct": idxp.get("000905"), "zz1000_pct": idxp.get("000852"),
+                        "cyb_pct": idxp.get("399006"), "kc50_pct": idxp.get("000688")})
         return out[-n:]
     rows = _read(_f, []) or []
     if not rows:

@@ -2264,9 +2264,9 @@ let mhStart = '';      // 日期范围（留空 = 不限）
 let mhEnd = '';
 let mhMonth = null;    // 当前选中的月份（1~12；null = 未选）
 let mhYearSel = '';    // 当前选中的年份（'' = 不限）
-let mhInitDone = false; // 是否已应用「默认年份 = 当前年份」
+let mhDefaultRangeApplied = false; // 首次加载是否已把默认 3 年范围同步到查询
 let mhScoreOp = '<';   // 评分筛选：固定为「小于」（页面上不再提供选择）
-let mhScoreVal = '';   // 评分筛选：阈值
+let mhScoreVal = '40'; // 评分筛选：阈值（默认 40）
 let mhRawRows = [];    // 最近一次拉取的原始行（未过滤）
 let mhLatest = '';     // 最新有数据的交易日（用于确定年份）
 let mhHasMonths = {};   // 有数据的月份集合（默认全景视图下统计，兜底用）
@@ -2472,12 +2472,14 @@ function mhDateFmt(dt) {
 }
 
 function mhBuildDateDefaults() {
-    // 日期范围默认值：开始 = 当年 1 月 1 日，结束 = 今天（只在未填写时设置，不覆盖用户输入）
+    // 日期范围默认值：覆盖最近 3 个自然年（含今年）→ 起点为两年前的今天（如 2026-10-30 → 2024-10-30）
     const s = document.getElementById('mh-date-start');
     const e = document.getElementById('mh-date-end');
     const now = new Date();
     if (s && !s.value) {
-        s.value = now.getFullYear() + '-01-01';
+        const d = new Date(now);
+        d.setFullYear(d.getFullYear() - 2);
+        s.value = mhDateFmt(d);
     }
     if (e && !e.value) {
         e.value = mhDateFmt(now);
@@ -2539,6 +2541,12 @@ function mhQueryDate() {
     loadMarketHistory(true);
 }
 
+function mhRefreshCombined() {
+    // 一次点击：先刷新本地数据，再抓一次实时行情（交易时段会多出「盘中」一行）
+    loadMarketHistory(true);
+    fetchIntraday();
+}
+
 function fetchIntraday() {
     // 盘中实时：抓一次全市场快照（家数 + 成交额 + 盘中封板率）
     const sum = document.getElementById('mh-summary');
@@ -2564,6 +2572,13 @@ async function loadMarketHistory(force) {
     mhBuildMonths();
     mhBuildYears();
     mhBuildDateDefaults();
+    if (!mhDefaultRangeApplied) {
+        mhDefaultRangeApplied = true;
+        const sEl = document.getElementById('mh-date-start');
+        const eEl = document.getElementById('mh-date-end');
+        if (sEl && sEl.value) mhStart = sEl.value;
+        if (eEl && eEl.value) mhEnd = eEl.value;
+    }
     mhSyncMonthUI();
     const body = document.getElementById('mh-body');
     if (body) body.innerHTML = '<tr><td colspan="11" class="empty-cell">正在统计…</td></tr>';
@@ -2587,21 +2602,9 @@ async function loadMarketHistory(force) {
         for (let i = 0; i < r.months.length; i++) mhMonthsAvail[r.months[i]] = true;
         mhBuildYears();
     }
-    if (!mhInitDone) {
-        // 第一次加载：默认选中「当前年份」，并按该年份整年重新拉一次
-        mhInitDone = true;
-        const dy = mhDefaultYear();
-        if (dy && String(dy) !== (mhYearSel || '')) {
-            mhYearSel = String(dy);
-            mhMonth = null;
-            mhStart = mhYearSel + '-01-01';
-            mhEnd = mhYearSel + '-12-31';
-            mhBuildYears();
-            mhSyncMonthUI();
-            return loadMarketHistory(true);
-        }
-    }
     mhRawRows = r.rows || [];
+    const clearBtn = document.getElementById('mh-score-clear');
+    if (clearBtn) clearBtn.style.display = mhScoreActive() ? '' : 'none';
     renderMarketHistory(mhApplyScoreFilter(mhRawRows));
 }
 
@@ -2727,8 +2730,8 @@ function renderMarketHistory(rows) {
                 '<td class="num ' + mhDiffCls(x.amount_diff) + '">' + fmtMhDiff(x.amount_diff) + '</td>' +
                 '<td class="num ' + mhPctCls(x.zz1000_pct) + '">' + mhFmtPct(x.zz1000_pct) + '</td>' +
                 '<td class="num ' + mhPctCls(x.zz500_pct) + '">' + mhFmtPct(x.zz500_pct) + '</td>' +
-                '<td class="num">' + fmtMhAmount(x.rz_ye) + '</td>' +
-                '<td class="num">' + fmtMhAmount(x.rq_ye) + '</td>' +
+                '<td class="num ' + mhPctCls(x.cyb_pct) + '">' + mhFmtPct(x.cyb_pct) + '</td>' +
+                '<td class="num ' + mhPctCls(x.kc50_pct) + '">' + mhFmtPct(x.kc50_pct) + '</td>' +
                 '</tr>';
         }).join('');
     }
@@ -2762,7 +2765,9 @@ function renderMarketHistory(rows) {
                     '<br>成交额总计：' + fmtMhAmount(x.amount) +
                     '<br>较上一日：' + fmtMhDiff(x.amount_diff) +
                     '<br>中证1000：' + mhFmtPct(x.zz1000_pct) +
-                    '<br>中证500：' + mhFmtPct(x.zz500_pct);
+                    '<br>中证500：' + mhFmtPct(x.zz500_pct) +
+                    '<br>创业板指：' + mhFmtPct(x.cyb_pct) +
+                    '<br>科创50：' + mhFmtPct(x.kc50_pct);
             }
         },
         legend: { data: ['情绪评分', '上涨家数', '下跌家数'], textStyle: { color: '#a0a0a0' }, top: 4 },
