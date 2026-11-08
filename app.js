@@ -2287,7 +2287,7 @@ let mhMonth = null;    // 当前选中的月份（1~12；null = 未选）
 let mhYearSel = '';    // 当前选中的年份（'' = 不限）
 let mhDefaultRangeApplied = false; // 首次加载是否已把默认 3 年范围同步到查询
 let mhScoreOp = '<';   // 评分筛选：固定为「小于」（页面上不再提供选择）
-let mhScoreVal = '40'; // 评分筛选：阈值（默认 40）
+let mhScoreVal = '';   // 评分筛选：阈值（默认空 = 不筛选）
 let mhRawRows = [];    // 最近一次拉取的原始行（未过滤）
 let mhLatest = '';     // 最新有数据的交易日（用于确定年份）
 let mhHasMonths = {};   // 有数据的月份集合（默认全景视图下统计，兜底用）
