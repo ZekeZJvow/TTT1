@@ -14,6 +14,8 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if not os.path.isfile(os.path.join(ROOT, "market_db.py")):
+    ROOT = os.path.dirname(os.path.abspath(__file__))   # 打包后文件在解包根目录
 sys.path.insert(0, ROOT)
 os.chdir(ROOT)
 if sys.stdout is None:

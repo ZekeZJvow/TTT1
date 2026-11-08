@@ -517,6 +517,47 @@ def _load_daystats_module():
     raise RuntimeError("找不到 build_day_stats.py")
 
 
+def _load_backfill_all_module():
+    """加载 tools/backfill_kline_all.py（开发态在 tools/，打包后在解包根目录）"""
+    import importlib.util
+    import os
+    import sys
+    bases = [os.path.dirname(os.path.abspath(__file__))]
+    if getattr(sys, "_MEIPASS", ""):
+        bases.insert(0, sys._MEIPASS)
+    cands = []
+    for b in bases:
+        cands.append(os.path.join(b, "backfill_kline_all.py"))
+        cands.append(os.path.join(b, "tools", "backfill_kline_all.py"))
+    for path in cands:
+        if os.path.isfile(path):
+            spec = importlib.util.spec_from_file_location("backfill_kline_all", path)
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules["backfill_kline_all"] = mod
+            spec.loader.exec_module(mod)
+            return mod
+    raise RuntimeError("找不到 backfill_kline_all.py")
+
+
+def _fetch_kline_all(target=None):
+    """收盘后确保当日全市场日K完整（>=4000只）；不足则补最近5天"""
+    import market_db as _mdb
+    d = target
+    if not d:
+        d = _mdb._read(lambda c: c.execute(
+            "SELECT MAX(trade_date) FROM daily_kline").fetchone()[0], None)
+    n = 0
+    if d:
+        n = _mdb._read(lambda c: c.execute(
+            "SELECT COUNT(*) FROM daily_kline WHERE trade_date=? AND change_pct IS NOT NULL",
+            (d,)).fetchone()[0], 0) or 0
+    if n >= 4000:
+        return "日K已完整(%d只)" % n
+    mod = _load_backfill_all_module()
+    mod.main(5)
+    return "全市场日K补齐(%s，原%d只)" % (d or "?", n)
+
+
 def _fetch_daystats(target=None):
     """全市场每日统计（涨跌家数/涨跌停/炸板/连板/等权收益）+ 指数日线"""
     mod = _load_daystats_module()
@@ -556,6 +597,7 @@ def run_daily_job(target_date=None, progress=None, name="close"):
     step("calendar", _fetch_calendar)
     step("hotlist", lambda: _fetch_hotlist(target))
     step("screen", lambda: _fetch_scan(target))
+    step("klineall", lambda: _fetch_kline_all(target))
     step("turnover", _fetch_turnover)
     step("breadth", lambda: _fetch_breadth(target))
     step("margin", lambda: _fetch_margin(target))

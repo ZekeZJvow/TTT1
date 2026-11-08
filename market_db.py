@@ -2651,8 +2651,8 @@ def daily_market_stats(max_days=45, prefer_screening=True):
     返回 [{date, up, down, flat, final, sealed, score, src, breadth_src,
             amount, amount_prev, amount_diff, emotion, emotion_label}]（升序，最多 max_days 天）
 
-    · 涨跌家数：优先用 market_breadth（实时抓取，沪深京全部A股口径，与同花顺一致），
-                否则用离线统计里按本地日K算出的全市场家数
+    · 涨跌家数：优先用「全市场日K」统计（>=4000 只才算完整）；日K不完整时才退回
+                market_breadth（实时抓取口径），避免两套数据打架
     · 行情评分：离线统计的封板率；若该日有真实选股结果则用真实值（更权威）
     """
     n = int(max_days)
@@ -2735,7 +2735,9 @@ def daily_market_stats(max_days=45, prefer_screening=True):
             up, down, flat = r["up_count"], r["down_count"], r["flat_count"]
             final, sealed = r["final_count"] or 0, r["sealed_count"] or 0
             bsrc = "kline"
-            if d in bmap and bmap[d][0] is not None:
+            kline_total = (r["up_count"] or 0) + (r["down_count"] or 0)
+            # 本地日K已是全市场（>=4000只）就相信日K；只有日K不完整时才用实时 breadth
+            if d in bmap and bmap[d][0] is not None and kline_total < 4000:
                 up, down, flat = bmap[d][0], bmap[d][1], bmap[d][2]
                 bsrc = "breadth"
             score, src = r["score"], r["src"] or "kline"
