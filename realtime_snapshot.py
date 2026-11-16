@@ -205,14 +205,18 @@ def snapshot(with_pool=True, use_em=True):
         mult = _limit_mult(code, code in st)
         lim_up = _round2(pc * mult)
         lim_dn = _round2(pc * (2 - mult))
+        is_st = code in st
         if pr >= lim_up - 0.001:
-            lu += 1
             lu_codes.add(code)
+            if not is_st:
+                lu += 1
         elif pr <= lim_dn + 0.001:
-            ld += 1
+            if not is_st:
+                ld += 1
         hi = q.get("high")
         if hi and hi >= lim_up - 0.001 and pr < lim_up - 0.001:
-            br += 1
+            if not is_st:
+                br += 1
 
     out = {"date": ref_date, "quote_date": ref_date, "quote_time": ref_clock,
            "up": up, "down": down, "flat": flat, "susp": susp,

@@ -7,6 +7,7 @@ r"""构建 market_day_stats（情绪评分的输入层）+ index_daily（沪深3
     幅度：主板 10%，创业板/科创板 20%，北交所 30%，主板 ST 5%
   涨停 = 收盘 ≥ 涨停价；跌停 = 收盘 ≤ 跌停价；
   炸板 = 盘中最高 ≥ 涨停价 且 收盘 < 涨停价
+  注意：涨停/跌停/炸板家数按同花顺口径剔除 ST（ST 仍参与连板高度/晋级率计算）
   连板高度 = 连续涨停天数的最大值（按交易日连续）
   晋级率 = 今日涨停中「昨日也涨停」的比例
 用法：python tools/build_day_stats.py
@@ -116,12 +117,18 @@ def build_day_stats():
                 if ch > 5: up5 += 1
                 elif ch < -5: down5 += 1
                 tot += ch
+            # 同花顺「涨停/跌停家数」不含 ST：ST 只参与连板/晋级，不进入 lu/ld/br 计数
+            is_st = bool(r["is_st"])
             if c >= lim_up - 0.001:
-                lu += 1; upcodes.add(code)
+                upcodes.add(code)
+                if not is_st:
+                    lu += 1
             elif c <= lim_dn + 0.001:
-                ld += 1
+                if not is_st:
+                    ld += 1
             if hi >= lim_up - 0.001 and c < lim_up - 0.001:
-                br += 1
+                if not is_st:
+                    br += 1
         n = up + down + flat
         new_streaks = {c: streaks.get(c, 0) + 1 for c in upcodes}
         height = max(new_streaks.values()) if new_streaks else 0
