@@ -2602,7 +2602,7 @@ async function loadMarketHistory(force) {
     }
     mhSyncMonthUI();
     const body = document.getElementById('mh-body');
-    if (body) body.innerHTML = '<tr><td colspan="11" class="empty-cell">正在统计…</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="13" class="empty-cell">正在统计…</td></tr>';
     let r;
     try {
         let _u = '/api/market-history?days=45';
@@ -2610,11 +2610,11 @@ async function loadMarketHistory(force) {
         if (mhEnd) _u += '&end=' + encodeURIComponent(mhEnd);
         r = await (await fetch(_u)).json();
     } catch (e) {
-        if (body) body.innerHTML = '<tr><td colspan="11" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="13" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
         return;
     }
     if (!r || !r.success) {
-        if (body) body.innerHTML = '<tr><td colspan="11" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="13" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
         return;
     }
     mhLoaded = true;
@@ -2683,7 +2683,7 @@ function renderMarketHistory(rows) {
     const sum = document.getElementById('mh-summary');
     if (!rows.length) {
         const emptyMsg = mhScoreActive() ? '没有符合评分筛选条件的交易日' : '该日期范围内暂无数据';
-        if (body) body.innerHTML = '<tr><td colspan="11" class="empty-cell">' + emptyMsg + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="13" class="empty-cell">' + emptyMsg + '</td></tr>';
         if (sum) sum.innerHTML = '<span class="mh-item dim">' + emptyMsg + '</span>';
         if (mhChart) mhChart.clear();
         return;
@@ -2747,6 +2747,8 @@ function renderMarketHistory(rows) {
                     (x.emotion == null ? '—' : Number(x.emotion).toFixed(1)) + '</td>' +
                 '<td class="num up">' + x.up + '</td>' +
                 '<td class="num down">' + x.down + '</td>' +
+                '<td class="num up-strong">' + (x.limit_up == null ? '—' : x.limit_up) + '</td>' +
+                '<td class="num down">' + (x.limit_down == null ? '—' : x.limit_down) + '</td>' +
                 '<td class="num up-strong">' + fmtMhAmount(x.amount) + '</td>' +
                 '<td class="num ' + mhDiffCls(x.amount_diff) + '">' + fmtMhDiff(x.amount_diff) + '</td>' +
                 '<td class="num ' + mhPctCls(x.zz1000_pct) + '">' + mhFmtPct(x.zz1000_pct) + '</td>' +
@@ -2783,6 +2785,8 @@ function renderMarketHistory(rows) {
                     '<br>情绪评分：' + (x.emotion == null ? '—' : Number(x.emotion).toFixed(1)) +
                     '<br>上涨家数：' + x.up +
                     '<br>下跌家数：' + x.down +
+                    '<br>涨停数：' + (x.limit_up == null ? '—' : x.limit_up) +
+                    '<br>跌停数：' + (x.limit_down == null ? '—' : x.limit_down) +
                     '<br>成交额总计：' + fmtMhAmount(x.amount) +
                     '<br>较上一日：' + fmtMhDiff(x.amount_diff) +
                     '<br>中证1000：' + mhFmtPct(x.zz1000_pct) +

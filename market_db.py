@@ -2696,6 +2696,15 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                 mmap[r["trade_date"]] = (r["rz_ye"], r["rq_ye"])
         except Exception:
             mmap = {}
+        # 全市场涨停/跌停数（来自 market_day_stats，表格展示用）
+        lmap = {}
+        try:
+            for r in conn.execute(
+                    "SELECT `trade_date`,`limit_up`,`limit_down` FROM `market_day_stats`").fetchall():
+                lmap[str(r["trade_date"])] = (r["limit_up"], r["limit_down"])
+        except Exception:
+            lmap = {}
+
         # 中证500 / 中证1000 日涨跌幅（表格展示用）
         imap = {}
         try:
@@ -2751,13 +2760,15 @@ def daily_market_stats(max_days=45, prefer_screening=True):
             rzye, rqye = mmap.get(d, (None, None))
             emo, emo_lab = smap.get(d, (None, None))
             idxp = imap.get(d, {})
+            lim_up, lim_dn = lmap.get(d, (None, None))
             out.append({"date": d, "up": up, "down": down, "flat": flat,
                         "final": final, "sealed": sealed, "score": score, "src": src,
                         "breadth_src": bsrc, "amount": amt, "amount_prev": None,
                         "amount_diff": diff, "rz_ye": rzye, "rq_ye": rqye,
                         "emotion": emo, "emotion_label": emo_lab,
                         "zz500_pct": idxp.get("000905"), "zz1000_pct": idxp.get("000852"),
-                        "cyb_pct": idxp.get("399006"), "kc50_pct": idxp.get("000688")})
+                        "cyb_pct": idxp.get("399006"), "kc50_pct": idxp.get("000688"),
+                        "limit_up": lim_up, "limit_down": lim_dn})
         return out[-n:]
     rows = _read(_f, []) or []
     if not rows:
