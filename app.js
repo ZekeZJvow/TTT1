@@ -2781,22 +2781,11 @@ function renderMarketHistory(rows) {
                 if (!ps || !ps.length) return '';
                 const x = rows[ps[0].dataIndex] || {};
                 return '<b>' + escHtml(x.date || '') + '</b>' +
-                    (x._hit ? ' <span style="color:#f5b041">★ 命中筛选条件</span>' : '') +
-                    '<br>情绪评分：' + (x.emotion == null ? '—' : Number(x.emotion).toFixed(1)) +
-                    '<br>上涨家数：' + x.up +
-                    '<br>下跌家数：' + x.down +
-                    '<br>涨停数：' + (x.limit_up == null ? '—' : x.limit_up) +
-                    '<br>跌停数：' + (x.limit_down == null ? '—' : x.limit_down) +
-                    '<br>成交额总计：' + fmtMhAmount(x.amount) +
-                    '<br>较上一日：' + fmtMhDiff(x.amount_diff) +
-                    '<br>中证1000：' + mhFmtPct(x.zz1000_pct) +
-                    '<br>中证500：' + mhFmtPct(x.zz500_pct) +
-                    '<br>创业板指：' + mhFmtPct(x.cyb_pct) +
-                    '<br>科创50：' + mhFmtPct(x.kc50_pct);
+                    (x._hit ? ' <span style="color:#f5b041">★ 命中</span>' : '') +
+                    '<br>上涨家数：' + x.up;
             }
         },
-        legend: { data: ['情绪评分', '上涨家数', '下跌家数'], textStyle: { color: '#a0a0a0' }, top: 4 },
-        grid: { left: 56, right: 64, top: 46, bottom: 58 },
+        grid: { left: 56, right: 24, top: 32, bottom: 58 },
         xAxis: {
             type: 'category', data: rows.map(function (x) { return x.date.slice(5); }),
             // z 调高：把竖向虚线画在柱子上层，否则会被柱子压住、看着像"没对准"
@@ -2806,22 +2795,22 @@ function renderMarketHistory(rows) {
             },
             axisLabel: { color: '#9aa0a6', fontSize: 11 }, axisLine: { lineStyle: { color: '#444' } }
         },
-        yAxis: [
-            { type: 'value', name: '评分', min: 0, max: 100, nameTextStyle: { color: '#9aa0a6' },
-              axisLabel: { color: '#9aa0a6' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.06)' } } },
-            { type: 'value', name: '家数', nameTextStyle: { color: '#9aa0a6' },
-              axisLabel: { color: '#9aa0a6' }, splitLine: { show: false } }
-        ],
-        series: [
-            { name: '情绪评分', type: 'line', yAxisIndex: 0, data: rows.map(function (x) { return x.emotion; }),
-              smooth: true, symbolSize: 6, connectNulls: false,
-              itemStyle: { color: '#f39c12' }, lineStyle: { width: 3 } },
-            { name: '上涨家数', type: 'bar', yAxisIndex: 1, data: rows.map(function (x) { return x.up; }),
-              itemStyle: { color: 'rgba(231,76,60,.62)' } },
-            { name: '下跌家数', type: 'bar', yAxisIndex: 1, data: rows.map(function (x) { return x.down; }),
-              itemStyle: { color: 'rgba(46,204,113,.62)' } }
-        ]
-    });
+        yAxis: {
+            type: 'value', name: '家数', min: 0, max: 6000, nameGap: 10,
+            nameTextStyle: { color: '#9aa0a6' },
+            axisLabel: { color: '#9aa0a6' },
+            splitLine: { lineStyle: { color: 'rgba(255,255,255,.06)' } }
+        },
+        series: [{
+            name: '上涨家数', type: 'line', data: rows.map(function (x) { return x.up; }),
+            smooth: false, showSymbol: false, connectNulls: false,
+            lineStyle: { width: 2.4, color: '#e74c3c' },
+            itemStyle: { color: '#e74c3c' },
+            areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(231,76,60,0.26)' },
+                { offset: 1, color: 'rgba(231,76,60,0.02)' }]) }
+        }]
+    }, true);
 }
 window.addEventListener('resize', function () { if (mhChart) mhChart.resize(); });
 
