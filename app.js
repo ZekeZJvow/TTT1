@@ -2803,9 +2803,10 @@ function renderMarketHistory(rows) {
         },
         series: [{
             name: '上涨家数', type: 'line', data: rows.map(function (x) { return x.up; }),
-            smooth: false, showSymbol: false, connectNulls: false,
+            smooth: false, showSymbol: true, symbol: 'circle', symbolSize: 5, connectNulls: false,
             lineStyle: { width: 2.4, color: '#e74c3c' },
-            itemStyle: { color: '#e74c3c' },
+            itemStyle: { color: '#e74c3c', borderColor: 'rgba(255,255,255,.55)', borderWidth: 0.5 },
+            emphasis: { scale: 1.8, itemStyle: { color: '#ff7b6b', borderColor: '#fff', borderWidth: 1 } },
             areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
                 { offset: 0, color: 'rgba(231,76,60,0.26)' },
                 { offset: 1, color: 'rgba(231,76,60,0.02)' }]) }
