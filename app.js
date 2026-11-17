@@ -2493,13 +2493,13 @@ function mhDateFmt(dt) {
 }
 
 function mhBuildDateDefaults() {
-    // 日期范围默认值：覆盖最近 3 个自然年（含今年）→ 起点为两年前的今天（如 2026-10-30 → 2024-10-30）
+    // 日期范围默认值：最近 6 个月（起点 = 今天往前 6 个月，结束 = 今天）
     const s = document.getElementById('mh-date-start');
     const e = document.getElementById('mh-date-end');
     const now = new Date();
     if (s && !s.value) {
         const d = new Date(now);
-        d.setFullYear(d.getFullYear() - 2);
+        d.setMonth(d.getMonth() - 6);
         s.value = mhDateFmt(d);
     }
     if (e && !e.value) {
