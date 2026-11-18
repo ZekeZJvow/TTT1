@@ -23,9 +23,10 @@
         </header>
 
         <nav class="mode-tabs">
-            <button id="mode-hotlist" class="mode-btn active" onclick="switchMode('hotlist', event)">📊 人气榜查询</button>
-            <button id="mode-screen" class="mode-btn" onclick="switchMode('screen', event)">🎯 动态选股</button>
-            <button id="mode-theme" class="mode-btn" onclick="switchMode('theme', event)">🔥 当前题材热度</button>
+            <!-- 人气榜查询、动态选股：按要求关闭（不在导航显示）。要恢复：删掉两行的 style="display:none" -->
+            <button id="mode-hotlist" class="mode-btn" style="display:none" onclick="switchMode('hotlist', event)">📊 人气榜查询</button>
+            <button id="mode-screen" class="mode-btn" style="display:none" onclick="switchMode('screen', event)">🎯 动态选股</button>
+            <button id="mode-theme" class="mode-btn active" onclick="switchMode('theme', event)">🔥 当前题材热度</button>
         <button id="mode-multi" class="mode-btn" onclick="switchMode('multi', event)">📅 题材多日对照</button>
         <button id="mode-market" class="mode-btn" onclick="switchMode('market', event)">📈 行情评分走势</button>
         <!-- 条件概率模块：按要求暂时关闭（不在页面显示）。要恢复：删掉下面这行的 style="display:none" -->
@@ -37,7 +38,7 @@
         </nav>
 
         <!-- ============ 面板一：人气榜 ============ -->
-        <section id="panel-hotlist" class="panel">
+        <section id="panel-hotlist" class="panel hidden">
             <div id="degrade-notice" class="degrade-notice hidden">
                 ⚠️ 已降级至东方财富热股榜
             </div>
@@ -234,7 +235,7 @@
         </section>
 
         <!-- ============ 面板三：当前题材热度 ============ -->
-        <section id="panel-theme" class="panel hidden">
+        <section id="panel-theme" class="panel">
             <div class="screen-intro">
                 <h2>当前题材热度 · 实时排名</h2>
                 <p class="screen-desc">

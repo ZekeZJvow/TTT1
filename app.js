@@ -11,6 +11,9 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('A股人气雷达 已加载');
     // auto load on page open
     fetchData();
+    // 默认首页 = 当前题材热度
+    loadHotThemes(false);
+    loadThemeDates();
     // 页头「今日情绪评分」：先读本地正式评分；交易时段再尝试盘中估算
     loadScoreToday().then(maybeLoadIntradayScore);
 });
