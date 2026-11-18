@@ -613,7 +613,8 @@ def init_db(force=False):
                 # 老库补列（新装时 schema.sql 已含；重复 ALTER 的错误忽略）
                 for _sql in ("ALTER TABLE `market_seal_stats` ADD COLUMN `kline_rows` INTEGER",
                              "ALTER TABLE `market_breadth` ADD COLUMN `total_count` INTEGER",
-                             "ALTER TABLE `market_breadth` ADD COLUMN `suspended` INTEGER"):
+                             "ALTER TABLE `market_breadth` ADD COLUMN `suspended` INTEGER",
+                             "ALTER TABLE `market_day_stats` ADD COLUMN `limit_up_dual` INTEGER"):
                     try:
                         conn.execute(_sql)
                     except Exception:
@@ -2700,8 +2701,8 @@ def daily_market_stats(max_days=45, prefer_screening=True):
         lmap = {}
         try:
             for r in conn.execute(
-                    "SELECT `trade_date`,`limit_up`,`limit_down` FROM `market_day_stats`").fetchall():
-                lmap[str(r["trade_date"])] = (r["limit_up"], r["limit_down"])
+                    "SELECT `trade_date`,`limit_up`,`limit_up_dual`,`limit_down` FROM `market_day_stats`").fetchall():
+                lmap[str(r["trade_date"])] = (r["limit_up"], r["limit_up_dual"], r["limit_down"])
         except Exception:
             lmap = {}
 
@@ -2760,7 +2761,7 @@ def daily_market_stats(max_days=45, prefer_screening=True):
             rzye, rqye = mmap.get(d, (None, None))
             emo, emo_lab = smap.get(d, (None, None))
             idxp = imap.get(d, {})
-            lim_up, lim_dn = lmap.get(d, (None, None))
+            lim_up, lim_dual, lim_dn = lmap.get(d, (None, None, None))
             out.append({"date": d, "up": up, "down": down, "flat": flat,
                         "final": final, "sealed": sealed, "score": score, "src": src,
                         "breadth_src": bsrc, "amount": amt, "amount_prev": None,
@@ -2768,7 +2769,7 @@ def daily_market_stats(max_days=45, prefer_screening=True):
                         "emotion": emo, "emotion_label": emo_lab,
                         "zz500_pct": idxp.get("000905"), "zz1000_pct": idxp.get("000852"),
                         "cyb_pct": idxp.get("399006"), "kc50_pct": idxp.get("000688"),
-                        "limit_up": lim_up, "limit_down": lim_dn})
+                        "limit_up": lim_up, "limit_up_dual": lim_dual, "limit_down": lim_dn})
         return out[-n:]
     rows = _read(_f, []) or []
     if not rows:

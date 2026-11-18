@@ -427,6 +427,7 @@ CREATE TABLE IF NOT EXISTS market_day_stats (
   up5_count    INTEGER,
   down5_count  INTEGER,
   limit_up     INTEGER,
+  limit_up_dual INTEGER,   -- 双创（创业板+科创板）涨停家数（不含ST）
   limit_down   INTEGER,
   broken       INTEGER,
   limit_height INTEGER,

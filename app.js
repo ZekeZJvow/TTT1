@@ -735,7 +735,13 @@ function switchMode(mode, event) {
     document.getElementById('panel-market').classList.toggle('hidden', mode !== 'market');
     document.getElementById('panel-cond').classList.toggle('hidden', mode !== 'cond');
     document.getElementById('panel-score').classList.toggle('hidden', mode !== 'score');
-    if (mode === 'screen') ensureScreenDate();
+    if (mode === 'screen') {
+        // 进入「动态选股」自动触发一次扫描（正在扫描时跳过）
+        ensureScreenDate().then(function () {
+            const btn = document.getElementById('screen-btn');
+            if (btn && !btn.disabled) startScreen();
+        });
+    }
     if (mode === 'theme') { loadHotThemes(false); loadThemeDates(); }
     if (mode === 'multi') { loadMulti(false); }
     if (mode === 'market') { loadMarketHistory(false); }
@@ -2602,7 +2608,7 @@ async function loadMarketHistory(force) {
     }
     mhSyncMonthUI();
     const body = document.getElementById('mh-body');
-    if (body) body.innerHTML = '<tr><td colspan="13" class="empty-cell">正在统计…</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="14" class="empty-cell">正在统计…</td></tr>';
     let r;
     try {
         let _u = '/api/market-history?days=45';
@@ -2610,11 +2616,11 @@ async function loadMarketHistory(force) {
         if (mhEnd) _u += '&end=' + encodeURIComponent(mhEnd);
         r = await (await fetch(_u)).json();
     } catch (e) {
-        if (body) body.innerHTML = '<tr><td colspan="13" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="14" class="empty-cell">加载失败：' + escHtml(e.message) + '</td></tr>';
         return;
     }
     if (!r || !r.success) {
-        if (body) body.innerHTML = '<tr><td colspan="13" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="14" class="empty-cell">' + escHtml((r && r.error) || '暂无数据') + '</td></tr>';
         return;
     }
     mhLoaded = true;
@@ -2683,7 +2689,7 @@ function renderMarketHistory(rows) {
     const sum = document.getElementById('mh-summary');
     if (!rows.length) {
         const emptyMsg = mhScoreActive() ? '没有符合评分筛选条件的交易日' : '该日期范围内暂无数据';
-        if (body) body.innerHTML = '<tr><td colspan="13" class="empty-cell">' + emptyMsg + '</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="14" class="empty-cell">' + emptyMsg + '</td></tr>';
         if (sum) sum.innerHTML = '<span class="mh-item dim">' + emptyMsg + '</span>';
         if (mhChart) mhChart.clear();
         return;
@@ -2748,6 +2754,7 @@ function renderMarketHistory(rows) {
                 '<td class="num up">' + x.up + '</td>' +
                 '<td class="num down">' + x.down + '</td>' +
                 '<td class="num up-strong">' + (x.limit_up == null ? '—' : x.limit_up) + '</td>' +
+                '<td class="num up">' + (x.limit_up_dual == null ? '—' : x.limit_up_dual) + '</td>' +
                 '<td class="num down">' + (x.limit_down == null ? '—' : x.limit_down) + '</td>' +
                 '<td class="num up-strong">' + fmtMhAmount(x.amount) + '</td>' +
                 '<td class="num ' + mhDiffCls(x.amount_diff) + '">' + fmtMhDiff(x.amount_diff) + '</td>' +

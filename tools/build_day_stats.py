@@ -102,6 +102,7 @@ def build_day_stats():
         up = down = flat = 0
         up5 = down5 = 0
         lu = ld = br = 0
+        lu_dual = 0
         tot = 0.0
         upcodes = set()
         for r in rows:
@@ -123,6 +124,8 @@ def build_day_stats():
                 upcodes.add(code)
                 if not is_st:
                     lu += 1
+                    if code.startswith(("300", "301", "688", "689")):
+                        lu_dual += 1
             elif c <= lim_dn + 0.001:
                 if not is_st:
                     ld += 1
@@ -134,7 +137,7 @@ def build_day_stats():
         height = max(new_streaks.values()) if new_streaks else 0
         promote = (len(upcodes & prev_up) / len(prev_up) * 100) if prev_up else None
         out.append({"date": d, "universe": len(rows), "up": up, "down": down, "flat": flat,
-                    "up5": up5, "down5": down5, "lu": lu, "ld": ld, "br": br,
+                    "up5": up5, "down5": down5, "lu": lu, "lu_dual": lu_dual, "ld": ld, "br": br,
                     "height": height, "promote": round(promote, 2) if promote is not None else None,
                     "ew": round(tot / n, 4) if n else None,
                     "amount": tmap.get(d)})
@@ -146,18 +149,18 @@ def build_day_stats():
         cur = conn.cursor()
         sql = m._upsert("market_day_stats",
                         ["trade_date", "universe", "up_count", "down_count", "flat_count",
-                         "up5_count", "down5_count", "limit_up", "limit_down", "broken",
+                         "up5_count", "down5_count", "limit_up", "limit_up_dual", "limit_down", "broken",
                          "limit_height", "promote_rate", "ew_return", "amount",
                          "source", "computed_at"],
                         ["trade_date"],
                         ["universe", "up_count", "down_count", "flat_count", "up5_count",
-                         "down5_count", "limit_up", "limit_down", "broken", "limit_height",
+                         "down5_count", "limit_up", "limit_up_dual", "limit_down", "broken", "limit_height",
                          "promote_rate", "ew_return", "amount", "source", "computed_at"])
         ts = m.now_str()
         cnt = 0
         for r in out:
             cur.execute(sql, (r["date"], r["universe"], r["up"], r["down"], r["flat"],
-                              r["up5"], r["down5"], r["lu"], r["ld"], r["br"],
+                              r["up5"], r["down5"], r["lu"], r["lu_dual"], r["ld"], r["br"],
                               r["height"], r["promote"], r["ew"], r["amount"], "kline", ts))
             cnt += 1
         return cnt
