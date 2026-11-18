@@ -165,17 +165,6 @@
                 </div>
             </div>
 
-            <div class="screen-form">
-                <div class="screen-date-wrap">
-                    <label for="screen-date">目标日期 (D)</label>
-                    <input type="date" id="screen-date">
-                </div>
-                <button id="screen-btn" class="query-btn" onclick="startScreen()">
-                    <span class="btn-text">🎯 开始扫描</span>
-                    <span class="btn-loading hidden">⏳ 扫描中...</span>
-                </button>
-            </div>
-            <p class="screen-tip">首次扫描全市场约需 30 秒，同一日期结果会缓存，重复查询秒出。</p>
 
             <div id="screen-progress" class="screen-progress hidden">
                 <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
@@ -210,6 +199,10 @@
                     <button class="sub-btn active" data-key="rows" onclick="switchScreenTable('rows', event)">入选池 <em id="cnt-rows">0</em></button>
                     <button class="sub-btn" data-key="brokenRows" onclick="switchScreenTable('brokenRows', event)">冲高未封 <em id="cnt-broken">0</em></button>
                     <button class="sub-btn" data-key="removedRows" onclick="switchScreenTable('removedRows', event)">被条件①剔除 <em id="cnt-removed">0</em></button>
+                    <span class="screen-date-inline">
+                        <label for="screen-date">目标日期</label>
+                        <input type="date" id="screen-date" onchange="startScreen()" title="修改日期后自动重新扫描">
+                    </span>
                 </div>
 
                 <div class="table-container">

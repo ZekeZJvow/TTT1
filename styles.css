@@ -727,6 +727,18 @@ body {
     background: rgba(52,152,219,.25);
     border-color: #3498db; color: #fff;
 }
+.screen-date-inline { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.screen-date-inline label { color: #9aa0a6; font-size: .85rem; white-space: nowrap; }
+.screen-date-inline input[type="date"] {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px; color: #e6e8ea;
+    padding: 8px 12px; font-size: .88rem; font-family: inherit;
+    color-scheme: dark; min-width: 150px;
+}
+.screen-date-inline input[type="date"]:focus { outline: none; border-color: #3498db; }
+@media (max-width: 600px) { .screen-date-inline { margin-left: 0; width: 100%; } }
+
 .sub-btn em {
     font-style: normal; background: rgba(255,255,255,0.15);
     padding: 1px 7px; border-radius: 10px; margin-left: 6px; font-size: .78rem;

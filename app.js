@@ -710,6 +710,7 @@ let screenDateTouched = false;
 let screenSortKey = 'gainClose';   // 默认按涨跌幅排序
 let screenSortDir = 1;             // 1 = 升序（默认）
 let screenPollTimer = null;
+let screenRunning = false;
 
 // ---------- 工具 ----------
 function ymdLocal(d) {
@@ -738,8 +739,7 @@ function switchMode(mode, event) {
     if (mode === 'screen') {
         // 进入「动态选股」自动触发一次扫描（正在扫描时跳过）
         ensureScreenDate().then(function () {
-            const btn = document.getElementById('screen-btn');
-            if (btn && !btn.disabled) startScreen();
+            if (!screenRunning) startScreen();
         });
     }
     if (mode === 'theme') { loadHotThemes(false); loadThemeDates(); }
@@ -778,11 +778,17 @@ function setProgress(done, total, msg) {
 }
 
 function finishScreenUI() {
+    screenRunning = false;
     const btn = document.getElementById('screen-btn');
-    btn.disabled = false;
-    btn.querySelector('.btn-text').classList.remove('hidden');
-    btn.querySelector('.btn-loading').classList.add('hidden');
-    document.getElementById('screen-progress').classList.add('hidden');
+    if (btn) {
+        btn.disabled = false;
+        const t = btn.querySelector('.btn-text');
+        const l = btn.querySelector('.btn-loading');
+        if (t) t.classList.remove('hidden');
+        if (l) l.classList.add('hidden');
+    }
+    const p = document.getElementById('screen-progress');
+    if (p) p.classList.add('hidden');
 }
 
 function screenError(msg) {
@@ -796,10 +802,15 @@ async function startScreen() {
     if (!date) { screenError('请先选择目标日期'); return; }
     if (screenPollTimer) { clearTimeout(screenPollTimer); screenPollTimer = null; }
 
+    screenRunning = true;
     const btn = document.getElementById('screen-btn');
-    btn.disabled = true;
-    btn.querySelector('.btn-text').classList.add('hidden');
-    btn.querySelector('.btn-loading').classList.remove('hidden');
+    if (btn) {
+        btn.disabled = true;
+        const t = btn.querySelector('.btn-text');
+        const l = btn.querySelector('.btn-loading');
+        if (t) t.classList.add('hidden');
+        if (l) l.classList.remove('hidden');
+    }
 
     document.getElementById('screen-error').classList.add('hidden');
     document.getElementById('screen-error-hint').textContent = '';
